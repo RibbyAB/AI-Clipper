@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clipper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14171a;
+    --panel: #1b1f23;
+    --panel-2: #21262b;
+    --border: #2a3036;
+    --text: #e9ecef;
+    --text-dim: #8b939b;
+    --text-faint: #565d64;
+    --mint: #5eead4;
+    --amber: #ff6a3d;
+    --mint-dim: rgba(94,234,212,0.12);
+    --amber-dim: rgba(255,106,61,0.14);
+    --radius: 14px;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 800px 500px at 15% -10%, rgba(94,234,212,0.06), transparent),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(255,106,61,0.05), transparent);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  .mono{ font-family: 'IBM Plex Mono', monospace; }
+
+  .wrap{ max-width: 980px; margin: 0 auto; padding: 48px 24px 100px; }
+
+  /* ---------- Header ---------- */
+  header{ display:flex; align-items:center; gap:14px; margin-bottom: 40px; }
+  .mark{
+    width: 38px; height: 38px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--mint), var(--amber));
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .mark svg{ width:20px; height:20px; }
+  header h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:700;
+    font-size: 22px; letter-spacing: -0.02em; margin:0;
+  }
+  header p{ margin:2px 0 0; color: var(--text-dim); font-size: 13px; }
+
+  /* ---------- Input card ---------- */
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+  .field-label{
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-faint); margin-bottom: 8px; display:block; font-weight:500;
+  }
+  .url-row{ display:flex; gap:10px; }
+  input[type="text"]{
+    flex:1; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; color: var(--text);
+    font-family:'IBM Plex Mono', monospace; font-size: 14px;
+    outline: none; transition: border-color .15s;
+  }
+  input[type="text"]:focus{ border-color: var(--mint); }
+  input[type="text"]::placeholder{ color: var(--text-faint); }
+
+  .controls-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top: 22px; flex-wrap: wrap; gap: 18px;
+  }
+  .stepper{ display:flex; align-items:center; gap:12px; }
+  .stepper button{
+    width: 30px; height:30px; border-radius:8px; border:1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: background .15s, border-color .15s;
+  }
+  .stepper button:hover{ border-color: var(--mint); }
+  .stepper .count{
+    font-family:'IBM Plex Mono', monospace; font-size: 18px; min-width: 24px; text-align:center;
+  }
+  .stepper .label{ color: var(--text-dim); font-size: 13px; margin-left: 4px; }
+
+  .toggle-row{ display:flex; align-items:center; gap:10px; }
+  .switch{
+    width: 40px; height: 22px; border-radius: 999px; background: var(--panel-2);
+    border: 1px solid var(--border); position: relative; cursor:pointer; flex-shrink:0;
+    transition: background .15s;
+  }
+  .switch::after{
+    content:''; position:absolute; top:2px; left:2px; width:16px; height:16px;
+    border-radius:50%; background: var(--text-faint); transition: transform .15s, background .15s;
+  }
+  .switch.on{ background: var(--mint-dim); border-color: var(--mint); }
+  .switch.on::after{ transform: translateX(18px); background: var(--mint); }
+  .toggle-row span{ font-size: 13px; color: var(--text-dim); }
+
+  .go-btn{
+    display:flex; align-items:center; gap:10px;
+    background: var(--amber); color: #16110d; border:none;
+    padding: 13px 22px; border-radius: 10px; font-weight:600; font-size:14px;
+    cursor:pointer; font-family:'Inter',sans-serif; transition: transform .1s, filter .15s;
+  }
+  .go-btn:hover{ filter: brightness(1.08); }
+  .go-btn:active{ transform: scale(0.98); }
+  .go-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .dot{
+    width:8px; height:8px; border-radius:50%; background:#16110d;
+  }
+  .go-btn.running .dot{ animation: pulse 1s infinite ease-in-out; }
+  @keyframes pulse{
+    0%,100%{ opacity:1; transform: scale(1); }
+    50%{ opacity:.35; transform: scale(0.7); }
+  }
+
+  .error-box{
+    display:none; margin-top:18px; padding:14px 16px; border-radius:10px;
+    background: rgba(255,106,61,0.1); border:1px solid rgba(255,106,61,0.35);
+    color:#ffb59c; font-size:13px; font-family:'IBM Plex Mono',monospace; white-space:pre-wrap;
+    word-break: break-word;
+  }
+
+  /* ---------- Sprocket stepper (progress) ---------- */
+  .progress-section{ margin-top: 32px; display:none; }
+  .sprocket{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 22px; position:relative;
+  }
+  .sprocket::before{
+    content:''; position:absolute; top:9px; left:14px; right:14px; height:2px;
+    background: var(--border); z-index:0;
+  }
+  .sp-step{ display:flex; flex-direction:column; align-items:center; gap:8px; position:relative; z-index:1; flex:1; }
+  .sp-dot{
+    width:20px; height:20px; border-radius:50%; background: var(--panel-2);
+    border:2px solid var(--border); transition: all .2s;
+  }
+  .sp-step.active .sp-dot{ border-color: var(--mint); background: var(--mint-dim); box-shadow: 0 0 0 4px var(--mint-dim); }
+  .sp-step.done .sp-dot{ border-color: var(--mint); background: var(--mint); }
+  .sp-label{ font-size: 11px; color: var(--text-faint); text-align:center; }
+  .sp-step.active .sp-label, .sp-step.done .sp-label{ color: var(--text-dim); }
+
+  .log-box{
+    background: #0e1012; border:1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; height: 200px; overflow-y:auto;
+    font-family:'IBM Plex Mono',monospace; font-size: 12.5px; line-height:1.7;
+    color: var(--text-dim);
+  }
+  .log-box div{ white-space: pre-wrap; word-break: break-word; }
+  .log-box::-webkit-scrollbar{ width:8px; }
+  .log-box::-webkit-scrollbar-thumb{ background: var(--border); border-radius:4px; }
+
+  /* ---------- Results ---------- */
+  .results-section{ margin-top: 40px; display:none; }
+  .results-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:10px; }
+  .results-head h2{ font-family:'Space Grotesk',sans-serif; font-size:18px; margin:0; }
+  .out-dir-label{ display:block; color: var(--text-faint); font-size:12px; margin-bottom:18px; font-family:'IBM Plex Mono',monospace; }
+  .dl-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .dl-action-btn{
+    background: var(--panel-2); border:1px solid var(--border); color: var(--text);
+    font-size:12.5px; font-weight:500; padding:8px 14px; border-radius:8px;
+    cursor:pointer; font-family:'Inter',sans-serif; transition: border-color .15s, background .15s;
+  }
+  .dl-action-btn:hover{ border-color: var(--mint); }
+  .dl-action-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+  .clip-card{
+    background: var(--panel); border:1px solid var(--border); border-radius: 12px;
+    overflow:hidden; display:flex; flex-direction:column;
+  }
+  .clip-card video{
+    width:100%; aspect-ratio: 9/16; background:#000; display:block; object-fit:cover;
+  }
+  .clip-meta{ padding: 12px 14px 14px; display:flex; flex-direction:column; gap:8px; flex:1; }
+  .clip-title{ font-size:13px; font-weight:500; line-height:1.35; }
+  .clip-dur{
+    align-self:flex-start; font-family:'IBM Plex Mono',monospace; font-size:11px;
+    color: var(--mint); background: var(--mint-dim); padding:2px 8px; border-radius:999px;
+  }
+  .clip-dl{
+    margin-top:auto; text-decoration:none; text-align:center; font-size:12px; font-weight:500;
+    color: var(--text); background: var(--panel-2); border:1px solid var(--border);
+    padding:9px; border-radius:8px; transition: border-color .15s;
+  }
+  .clip-dl:hover{ border-color: var(--mint); }
+
+  .empty-hint{ color: var(--text-faint); font-size: 13px; margin-top: 10px; }
+
+  @media (max-width: 560px){
+    .url-row{ flex-direction: column; }
+    .controls-row{ flex-direction:column; align-items:flex-start; }
+    .go-btn{ width:100%; justify-content:center; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="#0e1012"/></svg>
+    </div>
+    <div>
+      <h1>Clipper</h1>
+      <p>Tempel link video, dapatkan klip pendek siap unggah.</p>
+    </div>
+  </header>
+
+  <div class="card">
+    <label class="field-label">Link video</label>
+    <div class="url-row">
+      <input type="text" id="url" placeholder="https://youtube.com/watch?v=..." class="mono">
+    </div>
+
+    <div class="controls-row">
+      <div style="display:flex; align-items:center; gap:28px; flex-wrap:wrap;">
+        <div class="stepper">
+          <button type="button" id="dec">−</button>
+          <span class="count mono" id="count">8</span>
+          <button type="button" id="inc">+</button>
+          <span class="label">klip</span>
+        </div>
+        <div class="toggle-row">
+          <div class="switch" id="subToggle"></div>
+          <span>Subtitle otomatis</span>
+        </div>
+      </div>
+      <button class="go-btn" id="goBtn">
+        <span class="dot"></span>
+        <span id="goLabel">Buat klip</span>
+      </button>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="progress-section" id="progressSection">
+    <div class="sprocket" id="sprocket">
+      <div class="sp-step" data-stage="1"><div class="sp-dot"></div><div class="sp-label">Unduh</div></div>
+      <div class="sp-step" data-stage="2"><div class="sp-dot"></div><div class="sp-label">Transkrip</div></div>
+      <div class="sp-step" data-stage="3"><div class="sp-dot"></div><div class="sp-label">AI</div></div>
+      <div class="sp-step" data-stage="4"><div class="sp-dot"></div><div class="sp-label">Potong</div></div>
+      <div class="sp-step" data-stage="5"><div class="sp-dot"></div><div class="sp-label">Selesai</div></div>
+    </div>
+    <div class="log-box mono" id="logBox"></div>
+  </div>
+
+  <div class="results-section" id="resultsSection">
+    <div class="results-head">
+      <h2>Hasil klip</h2>
+      <div class="dl-actions">
+        <button class="dl-action-btn" id="dlZipBtn">Unduh ZIP</button>
+        <button class="dl-action-btn" id="dlAllBtn">Unduh semua (satu-satu)</button>
+      </div>
+    </div>
+    <span id="outDirLabel" class="out-dir-label"></span>
+    <div class="grid" id="grid"></div>
+  </div>
+
+</div>
+
+<script>
+let clipCount = 8;
+let subtitles = false;
+let polling = null;
+
+const countEl = document.getElementById('count');
+document.getElementById('inc').onclick = () => { clipCount = Math.min(20, clipCount+1); countEl.textContent = clipCount; };
+document.getElementById('dec').onclick = () => { clipCount = Math.max(1, clipCount-1); countEl.textContent = clipCount; };
+
+const subToggle = document.getElementById('subToggle');
+subToggle.onclick = () => { subtitles = !subtitles; subToggle.classList.toggle('on', subtitles); };
+
+const goBtn = document.getElementById('goBtn');
+const goLabel = document.getElementById('goLabel');
+const errorBox = document.getElementById('errorBox');
+const progressSection = document.getElementById('progressSection');
+const logBox = document.getElementById('logBox');
+const resultsSection = document.getElementById('resultsSection');
+const grid = document.getElementById('grid');
+const outDirLabel = document.getElementById('outDirLabel');
+const dlZipBtn = document.getElementById('dlZipBtn');
+const dlAllBtn = document.getElementById('dlAllBtn');
+let currentResults = [];
+
+const stageKeywords = [
+  {n:1, kw:'[1/5]'},
+  {n:2, kw:'[2/5]'},
+  {n:3, kw:'[3/5]'},
+  {n:4, kw:'[4/5]'},
+  {n:5, kw:'[5/5]'},
+];
+
+function setStage(activeN, doneUpTo){
+  document.querySelectorAll('.sp-step').forEach(el=>{
+    const n = parseInt(el.dataset.stage);
+    el.classList.toggle('active', n === activeN);
+    el.classList.toggle('done', n <= doneUpTo && n !== activeN);
+  });
+}
+
+let lastLogLength = -1;
+
+function renderLog(lines){
+  // hindari kerja render kalau isinya sama persis dengan sebelumnya
+  if (lines.length !== lastLogLength){
+    logBox.innerHTML = lines.map(l => `<div>${escapeHtml(l)}</div>`).join('');
+    logBox.scrollTop = logBox.scrollHeight;
+    lastLogLength = lines.length;
+  }
+
+  let doneUpTo = 0, active = 0;
+  const joined = lines.join('\n');
+  stageKeywords.forEach(s => { if (joined.includes(s.kw)) { active = s.n; } });
+  doneUpTo = Math.max(0, active - 1);
+  if (joined.includes('[5/5]')) { active = 0; doneUpTo = 5; }
+  setStage(active, doneUpTo);
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderResults(results, outDir){
+  if (!results.length) return;
+  currentResults = results;
+  resultsSection.style.display = 'block';
+  outDirLabel.textContent = outDir || '';
+  grid.innerHTML = results.map(r => `
+    <div class="clip-card">
+      <video src="/clips/${encodeURIComponent(r.file)}" controls preload="none"></video>
+      <div class="clip-meta">
+        <span class="clip-dur">${r.duration}d</span>
+        <div class="clip-title">${escapeHtml(r.title)}</div>
+        <a class="clip-dl" href="/clips/${encodeURIComponent(r.file)}" download>Unduh</a>
+      </div>
+    </div>
+  `).join('');
+}
+
+dlZipBtn.onclick = () => {
+  window.location.href = '/api/download_zip';
+};
+
+dlAllBtn.onclick = async () => {
+  dlAllBtn.disabled = true;
+  const originalLabel = dlAllBtn.textContent;
+  for (let i = 0; i < currentResults.length; i++){
+    const r = currentResults[i];
+    dlAllBtn.textContent = `Mengunduh ${i+1}/${currentResults.length}...`;
+    const a = document.createElement('a');
+    a.href = `/clips/${encodeURIComponent(r.file)}`;
+    a.download = r.file;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // jeda kecil supaya browser tidak memblokir download beruntun
+    await new Promise(res => setTimeout(res, 500));
+  }
+  dlAllBtn.textContent = originalLabel;
+  dlAllBtn.disabled = false;
+};
+
+async function poll(){
+  const res = await fetch('/api/status');
+  const s = await res.json();
+  renderLog(s.log);
+  renderResults(s.results, s.out_dir);
+
+  if (!s.running){
+    clearInterval(polling);
+    goBtn.disabled = false;
+    goBtn.classList.remove('running');
+    goLabel.textContent = 'Buat klip';
+    if (s.error){
+      errorBox.style.display = 'block';
+      errorBox.textContent = s.error;
+    }
+  }
+}
+
+goBtn.onclick = async () => {
+  const url = document.getElementById('url').value.trim();
+  if (!url){
+    errorBox.style.display = 'block';
+    errorBox.textContent = 'Isi link video dulu.';
+    return;
+  }
+  errorBox.style.display = 'none';
+  progressSection.style.display = 'block';
+  resultsSection.style.display = 'none';
+  grid.innerHTML = '';
+  logBox.innerHTML = '';
+  setStage(0, 0);
+
+  goBtn.disabled = true;
+  goBtn.classList.add('running');
+  goLabel.textContent = 'Memproses...';
+
+  const res = await fetch('/api/start', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({url, clips: clipCount, subtitles})
+  });
+  const data = await res.json();
+  if (!data.ok){
+    errorBox.style.display = 'block';
+    errorBox.textContent = data.error;
+    goBtn.disabled = false;
+    goBtn.classList.remove('running');
+    goLabel.textContent = 'Buat klip';
+    return;
+  }
+  polling = setInterval(poll, 1200);
+  poll();
+};
+</script>
+</body>
+</html>
