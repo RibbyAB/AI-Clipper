@@ -43,6 +43,8 @@ class Moment:
     end: float
     title: str
     reason: str
+    caption: str = ""
+    hashtags: str = ""
 
     @property
     def duration(self):
@@ -199,7 +201,7 @@ def find_moments(segments: list[dict], num_clips: int, total_duration: float) ->
     # makin banyak token dibutuhkan buat jawaban -> transkrip yang dikirim
     # dipangkas lebih agresif supaya total (prompt + jawaban) tetap di
     # bawah limit gratis Groq (8000 token/menit).
-    completion_budget = min(3500, 300 + effective_clips * 130)
+    completion_budget = min(4000, 350 + effective_clips * 190)
     prompt_char_budget = max(800, int((7200 - completion_budget) / 1.1))
     char_budgets = [prompt_char_budget, prompt_char_budget // 2, prompt_char_budget // 4, 800]
     last_error = None
@@ -236,11 +238,20 @@ Aturan penting:
   kata, dalam bahasa apapun.
 - Klip TIDAK BOLEH saling tumpang tindih satu sama lain.
 - Urutkan dari yang paling menarik ke yang kurang menarik.
+- Untuk tiap klip, buatkan juga "caption" siap-pakai untuk posting di
+  TikTok/Reels/Shorts -- singkat, ada hook menarik di awal, bahasa santai
+  sesuai gaya video, maksimal 2-3 kalimat.
+- Untuk tiap klip, buatkan juga "hashtags" -- 5 sampai 8 hashtag relevan
+  dipisah spasi (contoh: "#fyp #viral #edukasi"), campuran hashtag umum
+  (jangkauan luas) dan spesifik sesuai topik klip.
 
 Jawab HANYA dengan JSON array, tanpa teks lain, tanpa markdown code fence,
 format persis seperti ini (perhatikan start/end adalah angka, bukan kata):
 [
-  {{"start": 12.5, "end": 95.0, "title": "Judul singkat menarik", "reason": "Kenapa momen ini menarik"}}
+  {{"start": 12.5, "end": 95.0, "title": "Judul singkat menarik",
+    "reason": "Kenapa momen ini menarik",
+    "caption": "Caption siap posting dengan hook menarik di awal",
+    "hashtags": "#fyp #viral #relevan"}}
 ]
 """
 
@@ -307,7 +318,8 @@ format persis seperti ini (perhatikan start/end adalah angka, bukan kata):
 
     moments = [
         Moment(start=float(m["start"]), end=float(m["end"]),
-               title=str(m.get("title", "klip")), reason=str(m.get("reason", "")))
+               title=str(m.get("title", "klip")), reason=str(m.get("reason", "")),
+               caption=str(m.get("caption", "")), hashtags=str(m.get("hashtags", "")))
         for m in raw_moments
         if _is_valid_raw_moment(m)
     ]

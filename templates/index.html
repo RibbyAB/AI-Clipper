@@ -60,17 +60,19 @@
   }
   .field-label{
     font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--text-faint); margin-bottom: 8px; display:block; font-weight:500;
+    color: var(--text-faint); margin-bottom: 8px; display:flex; justify-content:space-between;
+    align-items:center; font-weight:500;
   }
-  .url-row{ display:flex; gap:10px; }
-  input[type="text"]{
-    flex:1; background: var(--panel-2); border: 1px solid var(--border);
+  .field-label .hint{ text-transform:none; letter-spacing:0; color: var(--text-faint); font-size:11.5px; }
+  textarea{
+    width:100%; background: var(--panel-2); border: 1px solid var(--border);
     border-radius: 10px; padding: 14px 16px; color: var(--text);
-    font-family:'IBM Plex Mono', monospace; font-size: 14px;
-    outline: none; transition: border-color .15s;
+    font-family:'IBM Plex Mono', monospace; font-size: 13.5px;
+    outline: none; transition: border-color .15s; resize: vertical;
+    min-height: 74px; line-height:1.6;
   }
-  input[type="text"]:focus{ border-color: var(--mint); }
-  input[type="text"]::placeholder{ color: var(--text-faint); }
+  textarea:focus{ border-color: var(--mint); }
+  textarea::placeholder{ color: var(--text-faint); }
 
   .controls-row{
     display:flex; align-items:center; justify-content:space-between;
@@ -130,6 +132,10 @@
 
   /* ---------- Sprocket stepper (progress) ---------- */
   .progress-section{ margin-top: 32px; display:none; }
+  .queue-label{
+    font-size:12.5px; color: var(--text-dim); margin-bottom:14px; font-family:'IBM Plex Mono',monospace;
+    display:none;
+  }
   .sprocket{
     display:flex; align-items:center; justify-content:space-between;
     margin-bottom: 22px; position:relative;
@@ -158,10 +164,11 @@
   .log-box::-webkit-scrollbar{ width:8px; }
   .log-box::-webkit-scrollbar-thumb{ background: var(--border); border-radius:4px; }
 
-  /* ---------- Results ---------- */
-  .results-section{ margin-top: 40px; display:none; }
+  /* ---------- Results (per job) ---------- */
+  .results-section{ margin-top: 40px; }
+  .job-block{ margin-bottom: 40px; }
   .results-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:10px; }
-  .results-head h2{ font-family:'Space Grotesk',sans-serif; font-size:18px; margin:0; }
+  .results-head h2{ font-family:'Space Grotesk',sans-serif; font-size:16px; margin:0; }
   .out-dir-label{ display:block; color: var(--text-faint); font-size:12px; margin-bottom:18px; font-family:'IBM Plex Mono',monospace; }
   .dl-actions{ display:flex; gap:8px; flex-wrap:wrap; }
   .dl-action-btn{
@@ -173,7 +180,7 @@
   .dl-action-btn:disabled{ opacity:0.5; cursor:not-allowed; }
 
   .grid{
-    display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 16px;
   }
   .clip-card{
@@ -189,17 +196,26 @@
     align-self:flex-start; font-family:'IBM Plex Mono',monospace; font-size:11px;
     color: var(--mint); background: var(--mint-dim); padding:2px 8px; border-radius:999px;
   }
-  .clip-dl{
-    margin-top:auto; text-decoration:none; text-align:center; font-size:12px; font-weight:500;
-    color: var(--text); background: var(--panel-2); border:1px solid var(--border);
-    padding:9px; border-radius:8px; transition: border-color .15s;
+  .clip-caption{
+    font-size:12px; color: var(--text-dim); line-height:1.5; background: var(--panel-2);
+    border:1px solid var(--border); border-radius:8px; padding:8px 10px; max-height:90px; overflow-y:auto;
   }
-  .clip-dl:hover{ border-color: var(--mint); }
+  .clip-hashtags{
+    font-size:11.5px; color: var(--mint); font-family:'IBM Plex Mono',monospace; word-break:break-word;
+  }
+  .clip-actions{ display:flex; gap:6px; margin-top:auto; }
+  .clip-dl, .clip-copy{
+    flex:1; text-decoration:none; text-align:center; font-size:12px; font-weight:500;
+    color: var(--text); background: var(--panel-2); border:1px solid var(--border);
+    padding:9px 6px; border-radius:8px; transition: border-color .15s; cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .clip-dl:hover, .clip-copy:hover{ border-color: var(--mint); }
+  .clip-copy.copied{ border-color: var(--mint); color: var(--mint); }
 
   .empty-hint{ color: var(--text-faint); font-size: 13px; margin-top: 10px; }
 
   @media (max-width: 560px){
-    .url-row{ flex-direction: column; }
     .controls-row{ flex-direction:column; align-items:flex-start; }
     .go-btn{ width:100%; justify-content:center; }
   }
@@ -219,10 +235,11 @@
   </header>
 
   <div class="card">
-    <label class="field-label">Link video</label>
-    <div class="url-row">
-      <input type="text" id="url" placeholder="https://youtube.com/watch?v=..." class="mono">
-    </div>
+    <label class="field-label">
+      <span>Link video</span>
+      <span class="hint">satu link per baris untuk proses banyak video sekaligus</span>
+    </label>
+    <textarea id="urls" placeholder="https://youtube.com/watch?v=...&#10;https://youtube.com/watch?v=... (opsional, baris berikutnya)" class="mono" rows="3"></textarea>
 
     <div class="controls-row">
       <div style="display:flex; align-items:center; gap:28px; flex-wrap:wrap;">
@@ -230,7 +247,7 @@
           <button type="button" id="dec">−</button>
           <span class="count mono" id="count">8</span>
           <button type="button" id="inc">+</button>
-          <span class="label">klip</span>
+          <span class="label">klip / video</span>
         </div>
         <div class="toggle-row">
           <div class="switch" id="subToggle"></div>
@@ -247,6 +264,7 @@
   </div>
 
   <div class="progress-section" id="progressSection">
+    <div class="queue-label" id="queueLabel"></div>
     <div class="sprocket" id="sprocket">
       <div class="sp-step" data-stage="1"><div class="sp-dot"></div><div class="sp-label">Unduh</div></div>
       <div class="sp-step" data-stage="2"><div class="sp-dot"></div><div class="sp-label">Transkrip</div></div>
@@ -257,17 +275,7 @@
     <div class="log-box mono" id="logBox"></div>
   </div>
 
-  <div class="results-section" id="resultsSection">
-    <div class="results-head">
-      <h2>Hasil klip</h2>
-      <div class="dl-actions">
-        <button class="dl-action-btn" id="dlZipBtn">Unduh ZIP</button>
-        <button class="dl-action-btn" id="dlAllBtn">Unduh semua (satu-satu)</button>
-      </div>
-    </div>
-    <span id="outDirLabel" class="out-dir-label"></span>
-    <div class="grid" id="grid"></div>
-  </div>
+  <div class="results-section" id="resultsSection"></div>
 
 </div>
 
@@ -275,6 +283,7 @@
 let clipCount = 8;
 let subtitles = false;
 let polling = null;
+let notifAsked = false;
 
 const countEl = document.getElementById('count');
 document.getElementById('inc').onclick = () => { clipCount = Math.min(20, clipCount+1); countEl.textContent = clipCount; };
@@ -287,13 +296,9 @@ const goBtn = document.getElementById('goBtn');
 const goLabel = document.getElementById('goLabel');
 const errorBox = document.getElementById('errorBox');
 const progressSection = document.getElementById('progressSection');
+const queueLabel = document.getElementById('queueLabel');
 const logBox = document.getElementById('logBox');
 const resultsSection = document.getElementById('resultsSection');
-const grid = document.getElementById('grid');
-const outDirLabel = document.getElementById('outDirLabel');
-const dlZipBtn = document.getElementById('dlZipBtn');
-const dlAllBtn = document.getElementById('dlAllBtn');
-let currentResults = [];
 
 const stageKeywords = [
   {n:1, kw:'[1/5]'},
@@ -314,7 +319,6 @@ function setStage(activeN, doneUpTo){
 let lastLogLength = -1;
 
 function renderLog(lines){
-  // hindari kerja render kalau isinya sama persis dengan sebelumnya
   if (lines.length !== lastLogLength){
     logBox.innerHTML = lines.map(l => `<div>${escapeHtml(l)}</div>`).join('');
     logBox.scrollTop = logBox.scrollHeight;
@@ -333,51 +337,106 @@ function escapeHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function renderResults(results, outDir){
-  if (!results.length) return;
-  currentResults = results;
-  resultsSection.style.display = 'block';
-  outDirLabel.textContent = outDir || '';
-  grid.innerHTML = results.map(r => `
-    <div class="clip-card">
-      <video src="/clips/${encodeURIComponent(r.file)}" controls preload="none"></video>
-      <div class="clip-meta">
-        <span class="clip-dur">${r.duration}d</span>
-        <div class="clip-title">${escapeHtml(r.title)}</div>
-        <a class="clip-dl" href="/clips/${encodeURIComponent(r.file)}" download>Unduh</a>
+let lastJobsSignature = '';
+
+function renderJobs(jobs){
+  const signature = JSON.stringify(jobs.map(j => [j.out_dir, j.results.length]));
+  if (signature === lastJobsSignature) return;
+  lastJobsSignature = signature;
+
+  resultsSection.innerHTML = jobs.map(job => {
+    if (!job.results.length) return '';
+    const cards = job.results.map(r => `
+      <div class="clip-card">
+        <video src="/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(r.file)}" controls preload="none"></video>
+        <div class="clip-meta">
+          <span class="clip-dur">${r.duration}d</span>
+          <div class="clip-title">${escapeHtml(r.title)}</div>
+          ${r.caption ? `<div class="clip-caption">${escapeHtml(r.caption)}</div>` : ''}
+          ${r.hashtags ? `<div class="clip-hashtags">${escapeHtml(r.hashtags)}</div>` : ''}
+          <div class="clip-actions">
+            <a class="clip-dl" href="/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(r.file)}" download>Unduh</a>
+            ${(r.caption || r.hashtags) ? `<button class="clip-copy" data-caption="${escapeHtml((r.caption||'') + (r.hashtags ? '\\n\\n' + r.hashtags : ''))}">Copy</button>` : ''}
+          </div>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `).join('');
+
+    return `
+      <div class="job-block">
+        <div class="results-head">
+          <h2>${escapeHtml(job.title)}</h2>
+          <div class="dl-actions">
+            <button class="dl-action-btn dl-zip" data-dir="${escapeHtml(job.out_dir)}">Unduh ZIP</button>
+            <button class="dl-action-btn dl-all" data-dir="${escapeHtml(job.out_dir)}">Unduh semua (satu-satu)</button>
+          </div>
+        </div>
+        <span class="out-dir-label">output/${escapeHtml(job.out_dir)}</span>
+        <div class="grid">${cards}</div>
+      </div>
+    `;
+  }).join('');
+
+  // pasang ulang event handler tiap render (innerHTML rebuild menghapus listener lama)
+  resultsSection.querySelectorAll('.clip-copy').forEach(btn => {
+    btn.onclick = async () => {
+      await navigator.clipboard.writeText(btn.dataset.caption);
+      btn.textContent = 'Tersalin!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    };
+  });
+
+  resultsSection.querySelectorAll('.dl-zip').forEach(btn => {
+    btn.onclick = () => { window.location.href = `/api/download_zip/${encodeURIComponent(btn.dataset.dir)}`; };
+  });
+
+  resultsSection.querySelectorAll('.dl-all').forEach(btn => {
+    btn.onclick = async () => {
+      const job = currentJobs.find(j => j.out_dir === btn.dataset.dir);
+      if (!job) return;
+      btn.disabled = true;
+      const original = btn.textContent;
+      for (let i = 0; i < job.results.length; i++){
+        const r = job.results[i];
+        btn.textContent = `Mengunduh ${i+1}/${job.results.length}...`;
+        const a = document.createElement('a');
+        a.href = `/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(r.file)}`;
+        a.download = r.file;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        await new Promise(res => setTimeout(res, 500));
+      }
+      btn.textContent = original;
+      btn.disabled = false;
+    };
+  });
 }
 
-dlZipBtn.onclick = () => {
-  window.location.href = '/api/download_zip';
-};
+let currentJobs = [];
 
-dlAllBtn.onclick = async () => {
-  dlAllBtn.disabled = true;
-  const originalLabel = dlAllBtn.textContent;
-  for (let i = 0; i < currentResults.length; i++){
-    const r = currentResults[i];
-    dlAllBtn.textContent = `Mengunduh ${i+1}/${currentResults.length}...`;
-    const a = document.createElement('a');
-    a.href = `/clips/${encodeURIComponent(r.file)}`;
-    a.download = r.file;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    // jeda kecil supaya browser tidak memblokir download beruntun
-    await new Promise(res => setTimeout(res, 500));
-  }
-  dlAllBtn.textContent = originalLabel;
-  dlAllBtn.disabled = false;
-};
+function notifyDone(totalClips){
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    new Notification('Klip selesai dibuat!', {
+      body: totalClips > 0 ? `${totalClips} klip siap diunduh.` : 'Proses selesai.',
+      icon: undefined,
+    });
+  } catch(e) { /* abaikan kalau browser menolak */ }
+}
 
 async function poll(){
   const res = await fetch('/api/status');
   const s = await res.json();
   renderLog(s.log);
-  renderResults(s.results, s.out_dir);
+  currentJobs = s.jobs;
+  renderJobs(s.jobs);
+
+  if (s.queue_total > 1){
+    queueLabel.style.display = 'block';
+    queueLabel.textContent = `Video ${s.queue_index}/${s.queue_total} dalam antrian`;
+  }
 
   if (!s.running){
     clearInterval(polling);
@@ -388,21 +447,36 @@ async function poll(){
       errorBox.style.display = 'block';
       errorBox.textContent = s.error;
     }
+    if (s.done){
+      const totalClips = s.jobs.reduce((sum, j) => sum + j.results.length, 0);
+      notifyDone(totalClips);
+    }
   }
 }
 
 goBtn.onclick = async () => {
-  const url = document.getElementById('url').value.trim();
-  if (!url){
+  const raw = document.getElementById('urls').value.trim();
+  const urls = raw.split('\n').map(u => u.trim()).filter(Boolean);
+  if (!urls.length){
     errorBox.style.display = 'block';
-    errorBox.textContent = 'Isi link video dulu.';
+    errorBox.textContent = 'Isi minimal satu link video.';
     return;
   }
+
+  // minta izin notifikasi di sini (dipicu oleh klik user, browser mengizinkan)
+  if (!notifAsked && 'Notification' in window && Notification.permission === 'default'){
+    notifAsked = true;
+    Notification.requestPermission();
+  }
+
   errorBox.style.display = 'none';
   progressSection.style.display = 'block';
-  resultsSection.style.display = 'none';
-  grid.innerHTML = '';
+  resultsSection.innerHTML = '';
+  currentJobs = [];
+  lastJobsSignature = '';
   logBox.innerHTML = '';
+  lastLogLength = -1;
+  queueLabel.style.display = 'none';
   setStage(0, 0);
 
   goBtn.disabled = true;
@@ -412,7 +486,7 @@ goBtn.onclick = async () => {
   const res = await fetch('/api/start', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({url, clips: clipCount, subtitles})
+    body: JSON.stringify({urls, clips: clipCount, subtitles})
   });
   const data = await res.json();
   if (!data.ok){
@@ -428,4 +502,4 @@ goBtn.onclick = async () => {
 };
 </script>
 </body>
-</html>
+</html>s

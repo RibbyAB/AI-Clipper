@@ -38,9 +38,12 @@ import clipper
 
 app = Flask(__name__)
 
+BASE_OUTPUT_DIR = Path("output")
+
 # ---------------------------------------------------------------------------
-# State global sederhana (aplikasi ini dipakai 1 orang di 1 browser lokal,
-# jadi tidak perlu sistem multi-user/job-queue yang rumit)
+# State global sederhana (aplikasi ini dipakai 1 orang di 1 browser lokal).
+# Mendukung QUEUE: beberapa link diproses berurutan, tiap video jadi satu
+# "job" dengan hasil klipnya masing-masing.
 # ---------------------------------------------------------------------------
 
 state = {
@@ -48,18 +51,16 @@ state = {
     "done": False,
     "error": None,
     "log": [],
-    "results": [],
-    "out_dir": None,
+    "jobs": [],          # daftar {title, out_dir (nama folder saja), results: [...]}
+    "queue_total": 0,
+    "queue_index": 0,    # video ke berapa yang lagi diproses (1-based)
 }
 state_lock = threading.Lock()
 
-
-MAX_LOG_LINES = 300
+MAX_LOG_LINES = 400
 
 
 def _trim_log():
-    # simpan cuma N baris terakhir -- daftar log yang terus membesar bikin
-    # payload /api/status makin besar tiap poll dan render browser makin berat.
     if len(state["log"]) > MAX_LOG_LINES:
         state["log"] = state["log"][-MAX_LOG_LINES:]
 
@@ -68,15 +69,9 @@ def log(msg: str):
     with state_lock:
         state["log"].append(msg)
         _trim_log()
-    # tulis ke konsol asli (bukan print() biasa, supaya tidak ke-tangkap lagi
-    # oleh LogWriter yang menggantikan sys.stdout selama pipeline berjalan)
     try:
         print(msg, file=sys.__stdout__)
     except UnicodeEncodeError:
-        # Command Prompt Windows kadang tidak bisa nampilkan karakter unicode
-        # tertentu (mis. tanda hubung panjang). Ini cuma cermin ke konsol
-        # untuk debugging -- data yang dikirim ke web UI tetap utuh, jadi
-        # aman untuk dilewati saja kalau gagal tampil di konsol.
         print(msg.encode("ascii", errors="replace").decode("ascii"), file=sys.__stdout__)
 
 
@@ -91,67 +86,83 @@ class LogWriter(io.TextIOBase):
         return len(s)
 
 
-def run_pipeline(url: str, num_clips: int, subtitles: bool):
-    import sys
+def process_one_video(url: str, num_clips: int, subtitles: bool):
+    """Proses satu video sampai selesai, hasil ditambahkan sebagai satu job
+    baru ke state['jobs']. Error di satu video TIDAK menghentikan video
+    lain di antrian -- dicatat di log lalu lanjut ke berikutnya."""
+    base_dir = BASE_OUTPUT_DIR
+    log("Mengambil info video ...")
+    try:
+        info = clipper.get_video_info(url)
+    except subprocess.CalledProcessError:
+        info = {"title": "video", "uploader": "unknown"}
+    out_dir = clipper.make_output_folder(base_dir, info["title"], info["uploader"])
+    job = {"title": info["title"], "out_dir": out_dir.name, "results": []}
+    with state_lock:
+        state["jobs"].append(job)
+    log(f"Hasil akan disimpan di: {out_dir}")
+
+    import tempfile, shutil
+    tmp_dir = Path(tempfile.mkdtemp(prefix="ai-clipper-"))
+    try:
+        video_path = clipper.download_video(url, tmp_dir)
+        segments = clipper.transcribe(video_path, tmp_dir)
+        total_duration = segments[-1]["end"] if segments else 0
+
+        moments = clipper.find_moments(segments, num_clips, total_duration)
+        log(f"    Ditemukan {len(moments)} momen.")
+
+        log(f"[4/5] Memotong & mem-vertikal-kan {len(moments)} klip ...")
+        results = []
+        for i, m in enumerate(moments, start=1):
+            fname = f"{i:02d}-{clipper.slugify(m.title)}.mp4"
+            out_path = out_dir / fname
+            try:
+                clipper.cut_clip(video_path, m, segments, out_path, tmp_dir, subtitles)
+                log(f"    [{i}/{len(moments)}] {fname}  ({m.duration:.0f}s) - {m.title}")
+                item = {
+                    "file": fname,
+                    "title": m.title,
+                    "reason": m.reason,
+                    "caption": m.caption,
+                    "hashtags": m.hashtags,
+                    "duration": round(m.duration),
+                }
+                results.append(item)
+                with state_lock:
+                    job["results"] = list(results)
+            except (subprocess.CalledProcessError, RuntimeError) as e:
+                log(f"    Gagal memotong klip {i}: {e}")
+
+        with open(out_dir / "moments.json", "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
+
+        log(f"[5/5] Selesai. {len(results)} klip tersimpan di: {out_dir.resolve()}")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        log("Video sumber & file temporary sudah dihapus.")
+
+
+def run_queue(urls: list[str], num_clips: int, subtitles: bool):
     real_stdout = sys.stdout
     sys.stdout = LogWriter()
     try:
-        base_dir = Path("output")
-        log("Mengambil info video ...")
-        try:
-            info = clipper.get_video_info(url)
-        except subprocess.CalledProcessError:
-            info = {"title": "video", "uploader": "unknown"}
-        out_dir = clipper.make_output_folder(base_dir, info["title"], info["uploader"])
-        with state_lock:
-            state["out_dir"] = str(out_dir)
-        log(f"Hasil akan disimpan di: {out_dir}")
-
-        import tempfile, shutil
-        tmp_dir = Path(tempfile.mkdtemp(prefix="ai-clipper-"))
-        try:
-            video_path = clipper.download_video(url, tmp_dir)
-            segments = clipper.transcribe(video_path, tmp_dir)
-            total_duration = segments[-1]["end"] if segments else 0
-
-            moments = clipper.find_moments(segments, num_clips, total_duration)
-            log(f"    Ditemukan {len(moments)} momen.")
-
-            log(f"[4/5] Memotong & mem-vertikal-kan {len(moments)} klip ...")
-            results = []
-            for i, m in enumerate(moments, start=1):
-                fname = f"{i:02d}-{clipper.slugify(m.title)}.mp4"
-                out_path = out_dir / fname
-                try:
-                    clipper.cut_clip(video_path, m, segments, out_path, tmp_dir, subtitles)
-                    log(f"    [{i}/{len(moments)}] {fname}  ({m.duration:.0f}s) - {m.title}")
-                    item = {
-                        "file": fname,
-                        "title": m.title,
-                        "reason": m.reason,
-                        "duration": round(m.duration),
-                    }
-                    results.append(item)
-                    with state_lock:
-                        state["results"] = list(results)
-                except (subprocess.CalledProcessError, RuntimeError) as e:
-                    log(f"    Gagal memotong klip {i}: {e}")
-
-            with open(out_dir / "moments.json", "w", encoding="utf-8") as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
-
-            log(f"[5/5] Selesai. {len(results)} klip tersimpan di: {out_dir.resolve()}")
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            log("Video sumber & file temporary sudah dihapus.")
+        total = len(urls)
+        for idx, url in enumerate(urls, start=1):
+            with state_lock:
+                state["queue_index"] = idx
+            if total > 1:
+                log(f"\n=== Video {idx}/{total}: {url} ===")
+            try:
+                process_one_video(url, num_clips, subtitles)
+            except Exception as e:
+                log(f"ERROR pada video {idx}/{total}: {e}")
+                with state_lock:
+                    state["error"] = str(e)
+                # lanjut ke video berikutnya di antrian, tidak berhenti total
 
         with state_lock:
             state["done"] = True
-
-    except Exception as e:
-        log(f"ERROR: {e}")
-        with state_lock:
-            state["error"] = str(e)
     finally:
         sys.stdout = real_stdout
         with state_lock:
@@ -169,18 +180,24 @@ def api_start():
         if state["running"]:
             return jsonify({"ok": False, "error": "Masih ada proses berjalan."}), 400
         data = request.get_json(force=True)
-        url = (data.get("url") or "").strip()
+
+        urls_raw = data.get("urls")
+        if urls_raw is None:
+            # kompatibilitas: dukung juga field lama "url" tunggal
+            urls_raw = [data.get("url") or ""]
+        urls = [u.strip() for u in urls_raw if u and u.strip()]
+
         num_clips = int(data.get("clips") or 8)
         subtitles = bool(data.get("subtitles"))
-        if not url:
+        if not urls:
             return jsonify({"ok": False, "error": "Link video kosong."}), 400
 
         state.update({
             "running": True, "done": False, "error": None,
-            "log": [], "results": [], "out_dir": None,
+            "log": [], "jobs": [], "queue_total": len(urls), "queue_index": 0,
         })
 
-    thread = threading.Thread(target=run_pipeline, args=(url, num_clips, subtitles), daemon=True)
+    thread = threading.Thread(target=run_queue, args=(urls, num_clips, subtitles), daemon=True)
     thread.start()
     return jsonify({"ok": True})
 
@@ -193,38 +210,35 @@ def api_status():
             "done": state["done"],
             "error": state["error"],
             "log": state["log"],
-            "results": state["results"],
-            "out_dir": state["out_dir"],
+            "jobs": state["jobs"],
+            "queue_total": state["queue_total"],
+            "queue_index": state["queue_index"],
         })
 
 
-@app.route("/clips/<path:filename>")
-def serve_clip(filename):
+@app.route("/clips/<path:relpath>")
+def serve_clip(relpath):
+    return send_from_directory(BASE_OUTPUT_DIR, relpath)
+
+
+@app.route("/api/download_zip/<path:job_dir>")
+def download_zip(job_dir):
     with state_lock:
-        out_dir = state["out_dir"]
-    if not out_dir:
-        return "Not found", 404
-    return send_from_directory(out_dir, filename)
-
-
-@app.route("/api/download_zip")
-def download_zip():
-    with state_lock:
-        out_dir = state["out_dir"]
-        results = list(state["results"])
-
-    if not out_dir or not results:
+        jobs = list(state["jobs"])
+    job = next((j for j in jobs if j["out_dir"] == job_dir), None)
+    if not job or not job["results"]:
         return "Belum ada klip untuk di-download.", 404
 
+    folder = BASE_OUTPUT_DIR / job["out_dir"]
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for r in results:
-            file_path = Path(out_dir) / r["file"]
+        for r in job["results"]:
+            file_path = folder / r["file"]
             if file_path.exists():
                 zf.write(file_path, arcname=r["file"])
     buf.seek(0)
 
-    zip_name = Path(out_dir).name + ".zip"
+    zip_name = job["out_dir"] + ".zip"
     return send_file(buf, mimetype="application/zip", as_attachment=True, download_name=zip_name)
 
 
