@@ -86,9 +86,15 @@
     transition: background .15s, border-color .15s;
   }
   .stepper button:hover{ border-color: var(--mint); }
-  .stepper .count{
-    font-family:'IBM Plex Mono', monospace; font-size: 18px; min-width: 24px; text-align:center;
+  .stepper .count-input{
+    font-family:'IBM Plex Mono', monospace; font-size: 18px; width: 44px; text-align:center;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    color: var(--text); padding: 5px 4px; outline:none; transition: border-color .15s;
+    -moz-appearance: textfield;
   }
+  .stepper .count-input:focus{ border-color: var(--mint); }
+  .stepper .count-input::-webkit-outer-spin-button,
+  .stepper .count-input::-webkit-inner-spin-button{ -webkit-appearance: none; margin:0; }
   .stepper .label{ color: var(--text-dim); font-size: 13px; margin-left: 4px; }
 
   .toggle-row{ display:flex; align-items:center; gap:10px; }
@@ -104,6 +110,20 @@
   .switch.on{ background: var(--mint-dim); border-color: var(--mint); }
   .switch.on::after{ transform: translateX(18px); background: var(--mint); }
   .toggle-row span{ font-size: 13px; color: var(--text-dim); }
+
+  .aspect-toggle{
+    display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden;
+  }
+  .aspect-toggle button{
+    background: var(--panel-2); color: var(--text-dim); border:none; cursor:pointer;
+    padding: 7px 12px; font-size:12.5px; font-family:'Inter',sans-serif;
+    display:flex; align-items:center; gap:6px; transition: background .15s, color .15s;
+  }
+  .aspect-toggle button:not(:last-child){ border-right:1px solid var(--border); }
+  .aspect-toggle button.active{ background: var(--mint-dim); color: var(--mint); }
+  .aspect-icon{ display:inline-block; border:1.5px solid currentColor; border-radius:2px; }
+  .aspect-icon.v{ width:11px; height:16px; }
+  .aspect-icon.h{ width:16px; height:11px; }
 
   .go-btn{
     display:flex; align-items:center; gap:10px;
@@ -239,15 +259,19 @@
       <span>Link video</span>
       <span class="hint">satu link per baris untuk proses banyak video sekaligus</span>
     </label>
-    <textarea id="urls" placeholder="https://youtube.com/watch?v=...&#10;https://youtube.com/watch?v=... (opsional, baris berikutnya)" class="mono" rows="3"></textarea>
+    <textarea id="urls" placeholder="https://youtube.com/watch?v=...&#10;https://youtube.com/watch?v=..." class="mono" rows="3"></textarea>
 
     <div class="controls-row">
       <div style="display:flex; align-items:center; gap:28px; flex-wrap:wrap;">
         <div class="stepper">
           <button type="button" id="dec">−</button>
-          <span class="count mono" id="count">8</span>
+          <input type="number" class="count-input mono" id="count" value="8" min="1" max="20" inputmode="numeric">
           <button type="button" id="inc">+</button>
           <span class="label">klip / video</span>
+        </div>
+        <div class="aspect-toggle">
+          <button type="button" id="aspectVertical" class="active"><span class="aspect-icon v"></span>9:16</button>
+          <button type="button" id="aspectHorizontal"><span class="aspect-icon h"></span>16:9</button>
         </div>
         <div class="toggle-row">
           <div class="switch" id="subToggle"></div>
@@ -282,15 +306,43 @@
 <script>
 let clipCount = 8;
 let subtitles = false;
+let aspectRatio = '9:16';
 let polling = null;
 let notifAsked = false;
 
 const countEl = document.getElementById('count');
-document.getElementById('inc').onclick = () => { clipCount = Math.min(20, clipCount+1); countEl.textContent = clipCount; };
-document.getElementById('dec').onclick = () => { clipCount = Math.max(1, clipCount-1); countEl.textContent = clipCount; };
+
+function setClipCount(n){
+  n = Math.max(1, Math.min(20, Math.round(n) || 8));
+  clipCount = n;
+  countEl.value = n;
+}
+
+document.getElementById('inc').onclick = () => setClipCount(clipCount + 1);
+document.getElementById('dec').onclick = () => setClipCount(clipCount - 1);
+
+// user ketik manual: update clipCount saat mengetik, tapi jangan paksa
+// format/clamp dulu supaya tidak mengganggu proses ketik (mis. mau ganti "8" jadi "12")
+countEl.oninput = () => {
+  const n = parseInt(countEl.value, 10);
+  if (!isNaN(n)) clipCount = n;
+};
+// baru di-rapikan/di-clamp saat selesai (blur) atau tekan Enter
+countEl.onblur = () => setClipCount(clipCount);
+countEl.onkeydown = (e) => { if (e.key === 'Enter') countEl.blur(); };
 
 const subToggle = document.getElementById('subToggle');
 subToggle.onclick = () => { subtitles = !subtitles; subToggle.classList.toggle('on', subtitles); };
+
+const aspectVerticalBtn = document.getElementById('aspectVertical');
+const aspectHorizontalBtn = document.getElementById('aspectHorizontal');
+function setAspect(value){
+  aspectRatio = value;
+  aspectVerticalBtn.classList.toggle('active', value === '9:16');
+  aspectHorizontalBtn.classList.toggle('active', value === '16:9');
+}
+aspectVerticalBtn.onclick = () => setAspect('9:16');
+aspectHorizontalBtn.onclick = () => setAspect('16:9');
 
 const goBtn = document.getElementById('goBtn');
 const goLabel = document.getElementById('goLabel');
@@ -356,7 +408,7 @@ function renderJobs(jobs){
           ${r.hashtags ? `<div class="clip-hashtags">${escapeHtml(r.hashtags)}</div>` : ''}
           <div class="clip-actions">
             <a class="clip-dl" href="/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(r.file)}" download>Unduh</a>
-            ${(r.caption || r.hashtags) ? `<button class="clip-copy" data-caption="${escapeHtml((r.caption||'') + (r.hashtags ? '\\n\\n' + r.hashtags : ''))}">Copy</button>` : ''}
+            ${(r.caption || r.hashtags) ? `<button class="clip-copy" data-caption="${escapeHtml(r.caption||'')}" data-hashtags="${escapeHtml(r.hashtags||'')}">Copy</button>` : ''}
           </div>
         </div>
       </div>
@@ -367,6 +419,7 @@ function renderJobs(jobs){
         <div class="results-head">
           <h2>${escapeHtml(job.title)}</h2>
           <div class="dl-actions">
+            <button class="dl-action-btn dl-open" data-dir="${escapeHtml(job.out_dir)}">Buka folder</button>
             <button class="dl-action-btn dl-zip" data-dir="${escapeHtml(job.out_dir)}">Unduh ZIP</button>
             <button class="dl-action-btn dl-all" data-dir="${escapeHtml(job.out_dir)}">Unduh semua (satu-satu)</button>
           </div>
@@ -380,10 +433,28 @@ function renderJobs(jobs){
   // pasang ulang event handler tiap render (innerHTML rebuild menghapus listener lama)
   resultsSection.querySelectorAll('.clip-copy').forEach(btn => {
     btn.onclick = async () => {
-      await navigator.clipboard.writeText(btn.dataset.caption);
+      const text = [btn.dataset.caption, btn.dataset.hashtags].filter(Boolean).join('\n\n');
+      await navigator.clipboard.writeText(text);
       btn.textContent = 'Tersalin!';
       btn.classList.add('copied');
       setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    };
+  });
+
+  resultsSection.querySelectorAll('.dl-open').forEach(btn => {
+    btn.onclick = async () => {
+      const original = btn.textContent;
+      btn.textContent = 'Membuka...';
+      try {
+        const res = await fetch(`/api/open_folder/${encodeURIComponent(btn.dataset.dir)}`, {method: 'POST'});
+        const data = await res.json();
+        if (!data.ok){ btn.textContent = 'Gagal buka'; setTimeout(() => btn.textContent = original, 1500); return; }
+      } catch(e) {
+        btn.textContent = 'Gagal buka';
+        setTimeout(() => btn.textContent = original, 1500);
+        return;
+      }
+      btn.textContent = original;
     };
   });
 
@@ -455,6 +526,7 @@ async function poll(){
 }
 
 goBtn.onclick = async () => {
+  setClipCount(clipCount); // pastikan nilai valid (1-20) walau input belum sempat di-blur
   const raw = document.getElementById('urls').value.trim();
   const urls = raw.split('\n').map(u => u.trim()).filter(Boolean);
   if (!urls.length){
@@ -486,7 +558,7 @@ goBtn.onclick = async () => {
   const res = await fetch('/api/start', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({urls, clips: clipCount, subtitles})
+    body: JSON.stringify({urls, clips: clipCount, subtitles, aspect: aspectRatio})
   });
   const data = await res.json();
   if (!data.ok){
@@ -502,4 +574,4 @@ goBtn.onclick = async () => {
 };
 </script>
 </body>
-</html>s
+</html>

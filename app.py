@@ -86,7 +86,7 @@ class LogWriter(io.TextIOBase):
         return len(s)
 
 
-def process_one_video(url: str, num_clips: int, subtitles: bool):
+def process_one_video(url: str, num_clips: int, subtitles: bool, aspect_ratio: str = "9:16"):
     """Proses satu video sampai selesai, hasil ditambahkan sebagai satu job
     baru ke state['jobs']. Error di satu video TIDAK menghentikan video
     lain di antrian -- dicatat di log lalu lanjut ke berikutnya."""
@@ -112,13 +112,13 @@ def process_one_video(url: str, num_clips: int, subtitles: bool):
         moments = clipper.find_moments(segments, num_clips, total_duration)
         log(f"    Ditemukan {len(moments)} momen.")
 
-        log(f"[4/5] Memotong & mem-vertikal-kan {len(moments)} klip ...")
+        log(f"[4/5] Memotong {len(moments)} klip (rasio {aspect_ratio}) ...")
         results = []
         for i, m in enumerate(moments, start=1):
             fname = f"{i:02d}-{clipper.slugify(m.title)}.mp4"
             out_path = out_dir / fname
             try:
-                clipper.cut_clip(video_path, m, segments, out_path, tmp_dir, subtitles)
+                clipper.cut_clip(video_path, m, segments, out_path, tmp_dir, subtitles, aspect_ratio)
                 log(f"    [{i}/{len(moments)}] {fname}  ({m.duration:.0f}s) - {m.title}")
                 item = {
                     "file": fname,
@@ -143,7 +143,7 @@ def process_one_video(url: str, num_clips: int, subtitles: bool):
         log("Video sumber & file temporary sudah dihapus.")
 
 
-def run_queue(urls: list[str], num_clips: int, subtitles: bool):
+def run_queue(urls: list[str], num_clips: int, subtitles: bool, aspect_ratio: str = "9:16"):
     real_stdout = sys.stdout
     sys.stdout = LogWriter()
     try:
@@ -154,7 +154,7 @@ def run_queue(urls: list[str], num_clips: int, subtitles: bool):
             if total > 1:
                 log(f"\n=== Video {idx}/{total}: {url} ===")
             try:
-                process_one_video(url, num_clips, subtitles)
+                process_one_video(url, num_clips, subtitles, aspect_ratio)
             except Exception as e:
                 log(f"ERROR pada video {idx}/{total}: {e}")
                 with state_lock:
@@ -189,6 +189,9 @@ def api_start():
 
         num_clips = int(data.get("clips") or 8)
         subtitles = bool(data.get("subtitles"))
+        aspect_ratio = data.get("aspect") or "9:16"
+        if aspect_ratio not in ("9:16", "16:9"):
+            aspect_ratio = "9:16"
         if not urls:
             return jsonify({"ok": False, "error": "Link video kosong."}), 400
 
@@ -197,7 +200,7 @@ def api_start():
             "log": [], "jobs": [], "queue_total": len(urls), "queue_index": 0,
         })
 
-    thread = threading.Thread(target=run_queue, args=(urls, num_clips, subtitles), daemon=True)
+    thread = threading.Thread(target=run_queue, args=(urls, num_clips, subtitles, aspect_ratio), daemon=True)
     thread.start()
     return jsonify({"ok": True})
 
@@ -240,6 +243,25 @@ def download_zip(job_dir):
 
     zip_name = job["out_dir"] + ".zip"
     return send_file(buf, mimetype="application/zip", as_attachment=True, download_name=zip_name)
+
+
+@app.route("/api/open_folder/<path:job_dir>", methods=["POST"])
+def open_folder(job_dir):
+    folder = (BASE_OUTPUT_DIR / job_dir).resolve()
+    if not folder.exists():
+        return jsonify({"ok": False, "error": "Folder tidak ditemukan."}), 404
+
+    try:
+        if sys.platform == "win32":
+            import os
+            os.startfile(str(folder))  # noqa: S606 -- aman, path dari state internal, bukan input bebas user
+        elif sys.platform == "darwin":
+            subprocess.run(["open", str(folder)])
+        else:
+            subprocess.run(["xdg-open", str(folder)])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 def open_browser():

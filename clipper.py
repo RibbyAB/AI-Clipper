@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
@@ -108,23 +109,46 @@ def download_video(url: str, tmp_dir: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 def transcribe(video_path: Path, tmp_dir: Path) -> list[dict]:
-    import torch
-    import whisper  # import di sini biar startup script tetap cepat
+    from faster_whisper import WhisperModel  # import di sini biar startup script tetap cepat
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"[2/5] Transkrip audio (model whisper: {WHISPER_MODEL_SIZE}, device: {device}) ...")
-    if device == "cpu":
-        print("    (GPU tidak terdeteksi / PyTorch versi CPU-only. Lihat README kalau mau pakai GPU NVIDIA.)")
+    def _fmt(t: float) -> str:
+        t = max(0, int(t))
+        m, s = divmod(t, 60)
+        h, m = divmod(m, 60)
+        return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
-    model = whisper.load_model(WHISPER_MODEL_SIZE, device=device)
-    # verbose=False -> tampilkan progress bar biasa (bukan cetak tiap kalimat
-    # satu-satu), supaya log tidak membanjir saat video panjang -- ribuan
-    # baris log bisa bikin tab browser lag/freeze karena terus di-render ulang.
-    result = model.transcribe(str(video_path), verbose=False)
-    segments = [
-        {"start": s["start"], "end": s["end"], "text": (s.get("text") or "").strip()}
-        for s in result["segments"]
-    ]
+    def _run(device: str, compute_type: str) -> list[dict]:
+        model = WhisperModel(WHISPER_MODEL_SIZE, device=device, compute_type=compute_type)
+        segments_gen, info = model.transcribe(str(video_path), beam_size=5)
+        total_dur = getattr(info, "duration", None)
+
+        result = []
+        start_time = time.time()
+        for i, s in enumerate(segments_gen, start=1):
+            result.append({"start": s.start, "end": s.end, "text": (s.text or "").strip()})
+            if i % 25 == 0:
+                elapsed = time.time() - start_time
+                if total_dur:
+                    pct = min(100, s.end / total_dur * 100)
+                    rate = s.end / elapsed if elapsed > 0 else 0
+                    eta = (total_dur - s.end) / rate if rate > 0 else None
+                    eta_str = f" - sisa ~{_fmt(eta)}" if eta else ""
+                    print(f"    [{pct:3.0f}%] {_fmt(s.end)} / {_fmt(total_dur)}{eta_str}")
+                else:
+                    print(f"    ... {i} segmen, sampai {_fmt(s.end)} ({_fmt(elapsed)} berjalan)")
+        return result
+
+    print(f"[2/5] Transkrip audio (model whisper: {WHISPER_MODEL_SIZE}) ...")
+    try:
+        # Error terkait GPU (termasuk file .dll CUDA yang hilang/rusak) kadang
+        # baru muncul di tengah proses transkripsi, bukan cuma saat loading
+        # model -- makanya seluruh proses dibungkus try/except, bukan cuma
+        # baris pembuatan model-nya saja.
+        segments = _run("cuda", "float16")
+        print("    (berhasil pakai GPU)")
+    except Exception as e:
+        print(f"    GPU tidak bisa dipakai ({e}). Mengulang pakai CPU ...")
+        segments = _run("cpu", "int8")
 
     # simpan transkrip mentah, berguna buat debug / dipakai ulang
     with open(tmp_dir / "transcript.json", "w", encoding="utf-8") as f:
@@ -443,7 +467,7 @@ def enforce_min_duration(moments: list[Moment], total_duration: float,
 
 
 # ---------------------------------------------------------------------------
-# 4. Potong video + crop vertikal 9:16 (+ subtitle opsional)
+# 4. Potong video + crop sesuai aspect ratio (9:16 atau 16:9) + subtitle opsional
 # ---------------------------------------------------------------------------
 
 def slugify(text: str) -> str:
@@ -477,12 +501,19 @@ def build_srt(segments: list[dict], start: float, end: float, out_path: Path):
 
 
 def cut_clip(video_path: Path, moment: Moment, segments: list[dict],
-             out_path: Path, tmp_dir: Path, with_subtitles: bool):
-    vf_filters = [
-        # crop tengah ke rasio 9:16, lalu scale ke ukuran standar
-        "crop=ih*9/16:ih",
-        "scale=1080:1920",
-    ]
+             out_path: Path, tmp_dir: Path, with_subtitles: bool, aspect_ratio: str = "9:16"):
+    if aspect_ratio == "16:9":
+        # crop tengah horizontal (potong bagian atas/bawah), lalu scale ke 1080p
+        vf_filters = [
+            "crop=iw:iw*9/16",
+            "scale=1920:1080",
+        ]
+    else:
+        # crop tengah vertikal (potong kiri/kanan), lalu scale ke ukuran standar
+        vf_filters = [
+            "crop=ih*9/16:ih",
+            "scale=1080:1920",
+        ]
 
     if with_subtitles:
         srt_name = f"{out_path.stem}.srt"
@@ -534,6 +565,7 @@ def main():
     parser.add_argument("--clips", type=int, default=8, help="Jumlah klip yang dihasilkan (default: 8)")
     parser.add_argument("--subtitles", action="store_true", help="Bakar subtitle otomatis ke video hasil")
     parser.add_argument("--outdir", default="output", help="Folder induk tempat semua hasil disimpan (tiap video otomatis dapat subfolder baru bernomor urut)")
+    parser.add_argument("--aspect", choices=["9:16", "16:9"], default="9:16", help="Rasio aspek video hasil (default: 9:16 vertikal)")
     args = parser.parse_args()
 
     base_dir = Path(args.outdir)
@@ -555,13 +587,13 @@ def main():
         moments = find_moments(segments, args.clips, total_duration)
         print(f"    Ditemukan {len(moments)} momen.")
 
-        print(f"[4/5] Memotong & mem-vertikal-kan {len(moments)} klip ...")
+        print(f"[4/5] Memotong {len(moments)} klip (rasio {args.aspect}) ...")
         results = []
         for i, m in enumerate(moments, start=1):
             fname = f"{i:02d}-{slugify(m.title)}.mp4"
             out_path = out_dir / fname
             try:
-                cut_clip(video_path, m, segments, out_path, tmp_dir, args.subtitles)
+                cut_clip(video_path, m, segments, out_path, tmp_dir, args.subtitles, args.aspect)
                 print(f"    [{i}/{len(moments)}] {fname}  ({m.duration:.0f}s) - {m.title}")
                 results.append({**asdict(m), "file": str(out_path)})
             except (subprocess.CalledProcessError, RuntimeError) as e:
