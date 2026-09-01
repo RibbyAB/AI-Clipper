@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Clipper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Poppins:wght@700&family=Montserrat:wght@700&family=Bebas+Neue&family=Anton&family=Archivo+Black&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg: #14171a;
@@ -50,6 +50,32 @@
     font-size: 22px; letter-spacing: -0.02em; margin:0;
   }
   header p{ margin:2px 0 0; color: var(--text-dim); font-size: 13px; }
+  .history-btn{
+    background: var(--panel); border:1px solid var(--border); color: var(--text-dim);
+    font-size:12.5px; font-weight:500; padding:9px 16px; border-radius:10px;
+    cursor:pointer; font-family:'Inter',sans-serif; transition: border-color .15s, color .15s;
+    flex-shrink:0;
+  }
+  .history-btn:hover{ border-color: var(--mint); color: var(--text); }
+
+  .history-panel{ display:none; margin-bottom:32px; }
+  .history-panel.open{ display:block; }
+  .history-item{
+    background: var(--panel); border:1px solid var(--border); border-radius:12px;
+    margin-bottom:10px; overflow:hidden;
+  }
+  .history-item-head{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding: 14px 18px; cursor:pointer;
+  }
+  .history-item-head:hover{ background: var(--panel-2); }
+  .history-item-title{ font-size:13.5px; font-weight:500; }
+  .history-item-meta{ font-size:11.5px; color: var(--text-faint); font-family:'IBM Plex Mono',monospace; }
+  .history-item-body{ display:none; padding: 0 18px 18px; }
+  .history-item.open .history-item-body{ display:block; }
+  .history-item.open .history-chevron{ transform: rotate(90deg); }
+  .history-chevron{ color: var(--text-faint); transition: transform .15s; font-size:12px; }
+  .history-empty{ color: var(--text-faint); font-size:13px; padding: 8px 2px; }
 
   /* ---------- Input card ---------- */
   .card{
@@ -98,6 +124,39 @@
   .stepper .label{ color: var(--text-dim); font-size: 13px; margin-left: 4px; }
 
   .toggle-row{ display:flex; align-items:center; gap:10px; }
+  .speaker-row{ display:none; }
+
+  .style-panel{ display:none; margin-top:14px; padding:16px; border-radius:10px;
+    background: var(--panel-2); border:1px solid var(--border); }
+  .style-panel.visible{ display:block; }
+  .style-row{ margin-bottom:14px; }
+  .style-row:last-child{ margin-bottom:0; }
+  .style-label{ font-size:12.5px; color: var(--text-dim); display:block; margin-bottom:8px; }
+  .style-val{ color: var(--mint); font-family:'IBM Plex Mono',monospace; }
+  .color-swatches{ display:flex; align-items:center; gap:8px; }
+  .color-swatch{
+    width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;
+    padding:0; transition: border-color .15s, transform .1s;
+  }
+  .color-swatch:hover{ transform: scale(1.1); }
+  .color-swatch.active{ border-color: var(--mint); }
+  .color-custom{
+    width:26px; height:26px; border-radius:50%; border:1px solid var(--border);
+    padding:0; cursor:pointer; background: var(--panel); overflow:hidden;
+  }
+  .style-slider{
+    width:100%; height:4px; border-radius:2px; appearance:none; background: var(--border);
+    outline:none; cursor:pointer;
+  }
+  .style-slider::-webkit-slider-thumb{
+    appearance:none; width:16px; height:16px; border-radius:50%; background: var(--mint); cursor:pointer;
+  }
+  .style-slider::-moz-range-thumb{
+    width:16px; height:16px; border-radius:50%; background: var(--mint); border:none; cursor:pointer;
+  }
+  .pos-sliders{ display:none; }
+  .pos-sliders.visible{ display:block; }
+
   .switch{
     width: 40px; height: 22px; border-radius: 999px; background: var(--panel-2);
     border: 1px solid var(--border); position: relative; cursor:pointer; flex-shrink:0;
@@ -110,6 +169,47 @@
   .switch.on{ background: var(--mint-dim); border-color: var(--mint); }
   .switch.on::after{ transform: translateX(18px); background: var(--mint); }
   .toggle-row span{ font-size: 13px; color: var(--text-dim); }
+
+  .font-select{
+    background: var(--panel-2); border:1px solid var(--border); color: var(--text);
+    font-size:12.5px; padding: 8px 10px; border-radius:8px; cursor:pointer;
+    font-family:'Inter',sans-serif; outline:none; transition: border-color .15s;
+    display:none;
+  }
+  .font-select.visible{ display:inline-block; }
+  .font-select:focus{ border-color: var(--mint); }
+
+  .font-preview-box{
+    display:none; margin-top: 14px; padding: 22px 16px; border-radius: 10px;
+    background: #0e1012 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="%23161a1e"/><rect width="10" height="10" fill="%231b1f24"/><rect x="10" y="10" width="10" height="10" fill="%231b1f24"/></svg>');
+    background-size: 20px 20px;
+    border:1px solid var(--border); text-align:center;
+  }
+  .font-preview-box.visible{ display:block; }
+  .font-preview-text{
+    color:#fff; font-size: 22px; font-weight: 700; line-height:1.3;
+    text-shadow: -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000, -1.5px 1.5px 0 #000, 1.5px 1.5px 0 #000, 0 0 6px rgba(0,0,0,0.5);
+  }
+
+  .wm-upload{ display:none; align-items:center; gap:8px; }
+  .wm-upload.visible{ display:flex; }
+  .wm-thumb{
+    width:32px; height:32px; border-radius:6px; object-fit:contain;
+    background: repeating-conic-gradient(#20252b 0% 25%, #1a1e23 0% 50%) 50% / 10px 10px;
+    border:1px solid var(--border);
+  }
+  .wm-upload-btn{
+    background: var(--panel-2); border:1px solid var(--border); color: var(--text);
+    font-size:12.5px; font-weight:500; padding:8px 14px; border-radius:8px;
+    cursor:pointer; font-family:'Inter',sans-serif; transition: border-color .15s;
+  }
+  .wm-upload-btn:hover{ border-color: var(--mint); }
+  .wm-remove-btn{
+    background: transparent; border:1px solid var(--border); color: var(--text-faint);
+    font-size:12px; padding:7px 12px; border-radius:8px; cursor:pointer;
+    font-family:'Inter',sans-serif; transition: border-color .15s, color .15s;
+  }
+  .wm-remove-btn:hover{ border-color: var(--amber); color: var(--amber); }
 
   .aspect-toggle{
     display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden;
@@ -124,6 +224,7 @@
   .aspect-icon{ display:inline-block; border:1.5px solid currentColor; border-radius:2px; }
   .aspect-icon.v{ width:11px; height:16px; }
   .aspect-icon.h{ width:16px; height:11px; }
+  .aspect-icon.sq{ width:13px; height:13px; }
 
   .go-btn{
     display:flex; align-items:center; gap:10px;
@@ -141,6 +242,103 @@
   @keyframes pulse{
     0%,100%{ opacity:1; transform: scale(1); }
     50%{ opacity:.35; transform: scale(0.7); }
+  }
+
+  .preview-btn{
+    margin-top:12px; background: var(--panel-2); border:1px solid var(--border); color: var(--text);
+    font-size:12.5px; font-weight:500; padding:9px 16px; border-radius:8px;
+    cursor:pointer; font-family:'Inter',sans-serif; transition: border-color .15s;
+  }
+  .preview-btn:hover{ border-color: var(--mint); }
+
+  .preview-panel{ display:none; margin-top:16px; }
+  .preview-panel.open{ display:block; }
+  .preview-hint{ font-size:11.5px; color: var(--text-faint); margin: 0 0 10px; }
+  .preview-stage{
+    position:relative; width:100%; max-width:340px; margin:0 auto;
+    aspect-ratio: 9/16; background: #0e1012 center/cover no-repeat;
+    border-radius:10px; overflow:hidden; border:1px solid var(--border);
+  }
+  .preview-thumb{ width:100%; height:100%; object-fit:cover; display:block; }
+  .preview-box{
+    position:absolute; border:2px dashed var(--mint); border-radius:8px;
+    background: rgba(94,234,212,0.12); cursor:grab; display:flex;
+    align-items:center; justify-content:center; touch-action:none;
+    font-size:11px; color: var(--mint); font-family:'IBM Plex Mono',monospace;
+  }
+  .preview-box:active{ cursor:grabbing; }
+  .preview-wm-box{ width:25%; aspect-ratio:1/1; border-color: var(--amber); background: rgba(255,106,61,0.14); color: var(--amber); }
+  .preview-sub-box{ width:70%; height:11%; border-color:#fff; background: rgba(255,255,255,0.12); color:#fff; }
+  .preview-resize-handle{
+    position:absolute; right:-6px; bottom:-6px; width:14px; height:14px;
+    border-radius:50%; background: var(--amber); cursor:nwse-resize; border:2px solid var(--panel);
+  }
+
+  .template-tabs{ display:flex; gap:6px; margin-bottom:10px; }
+  .template-tabs button{
+    flex:1; background: var(--panel-2); border:1px solid var(--border); color: var(--text-dim);
+    font-size:12px; font-weight:500; padding:8px 4px; border-radius:8px; cursor:pointer;
+    font-family:'Inter',sans-serif; transition: background .15s, color .15s;
+  }
+  .template-tabs button.active{ background: var(--mint-dim); color: var(--mint); border-color: var(--mint); }
+
+  .preview-aspect-tabs{ display:flex; gap:6px; margin-bottom:10px; }
+  .preview-aspect-tabs button{
+    flex:1; background: var(--panel-2); border:1px solid var(--border); color: var(--text-dim);
+    font-size:11.5px; font-weight:500; padding:6px 4px; border-radius:8px; cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; transition: background .15s, color .15s;
+  }
+  .preview-aspect-tabs button.active{ background: var(--amber-dim, rgba(255,106,61,0.15)); color: var(--amber); border-color: var(--amber); }
+
+  .preview-safezone{ position:absolute; background: repeating-linear-gradient(45deg, rgba(255,60,60,0.08), rgba(255,60,60,0.08) 6px, rgba(255,60,60,0.14) 6px, rgba(255,60,60,0.14) 12px); pointer-events:none; }
+  .preview-safezone-right{ right:0; top:0; width:15%; height:100%; }
+  .preview-safezone-bottom{ left:0; bottom:0; width:100%; height:16%; }
+
+  .preview-ui-icons{ position:absolute; inset:0; pointer-events:none; }
+  .ui-icon-col{
+    position:absolute; right:3.5%; bottom:20%; display:flex; flex-direction:column;
+    align-items:center; gap:16px;
+  }
+  .ui-icon-col .item{ display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .ui-icon-col .glyph{
+    font-size:25px; color:#fff; text-shadow: 0 1px 3px rgba(0,0,0,0.6); line-height:1;
+  }
+  .ui-icon-col .dot{ width:26px; height:26px; border-radius:50%; background: rgba(255,255,255,0.9); position:relative; }
+  .ui-icon-col .dot.avatar{ border:2px solid #fe2c55; background: rgba(255,255,255,0.35); }
+  .ui-icon-col .dot.avatar::after{
+    content:'+'; position:absolute; bottom:-5px; left:50%; transform:translateX(-50%);
+    width:14px; height:14px; border-radius:50%; background:#fe2c55; color:#fff;
+    font-size:10px; line-height:14px; text-align:center; font-weight:700;
+  }
+  .ui-icon-col .dot.disc{ background: radial-gradient(circle, #333 40%, #999 41% 60%, #333 61%); animation: spin 3s linear infinite; }
+  @keyframes spin{ from{transform:rotate(0)} to{transform:rotate(360deg)} }
+  .ui-icon-col .count{ font-size:10px; color:#fff; font-weight:600; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
+  .ui-bottom-text{
+    position:absolute; left:3.5%; bottom:3%; width:64%; font-size:11px; color:#fff;
+    line-height:1.55; text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+  .ui-bottom-text .handle{ font-weight:700; }
+  .ui-bottom-text .follow-btn{
+    display:inline-block; margin-left:6px; padding:2px 10px; border-radius:6px;
+    font-size:10px; font-weight:600; vertical-align:middle;
+    border:1px solid #fff; color:#fff;
+  }
+  .ui-bottom-text .follow-btn.solid{ background:#fff; color:#000; border:none; }
+  .ui-bottom-text .caption{ display:block; margin:3px 0; opacity:0.95; }
+  .ui-bottom-text .sound{ display:flex; align-items:center; gap:4px; opacity:0.9; }
+
+  .preview-top-nav{
+    position:absolute; top:3%; left:0; width:100%; display:flex;
+    justify-content:center; gap:16px; pointer-events:none; z-index:1;
+  }
+  .preview-top-nav span{
+    font-size:12px; font-weight:600; color: rgba(255,255,255,0.55);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6); padding-bottom:4px; position:relative;
+  }
+  .preview-top-nav span.active{ color:#fff; }
+  .preview-top-nav span.active::after{
+    content:''; position:absolute; left:0; right:0; bottom:0; height:2px;
+    background:#fff; border-radius:1px;
   }
 
   .error-box{
@@ -208,7 +406,7 @@
     overflow:hidden; display:flex; flex-direction:column;
   }
   .clip-card video{
-    width:100%; aspect-ratio: 9/16; background:#000; display:block; object-fit:cover;
+    width:100%; background:#000; display:block; object-fit:contain;
   }
   .clip-meta{ padding: 12px 14px 14px; display:flex; flex-direction:column; gap:8px; flex:1; }
   .clip-title{ font-size:13px; font-weight:500; line-height:1.35; }
@@ -223,6 +421,18 @@
   .clip-hashtags{
     font-size:11.5px; color: var(--mint); font-family:'IBM Plex Mono',monospace; word-break:break-word;
   }
+  .clip-aspect-mini{
+    display:flex; gap:4px; padding:8px 8px 0;
+  }
+  .clip-aspect-mini button{
+    flex:1; background: var(--panel-2); border:1px solid var(--border); color: var(--text-faint);
+    font-size:10.5px; padding:4px 2px; border-radius:6px; cursor:pointer;
+    font-family:'IBM Plex Mono',monospace; transition: background .15s, color .15s;
+  }
+  .clip-aspect-mini button.active{ background: var(--mint-dim); color: var(--mint); border-color: var(--mint); }
+  .clip-aspect-mini button.missing{ color: var(--text-faint); border-style: dashed; }
+  .clip-aspect-mini button.missing:hover{ color: var(--amber); border-color: var(--amber); }
+  .clip-aspect-mini button:disabled{ opacity: 0.5; cursor: wait; }
   .clip-actions{ display:flex; gap:6px; margin-top:auto; }
   .clip-dl, .clip-copy{
     flex:1; text-decoration:none; text-align:center; font-size:12px; font-weight:500;
@@ -248,18 +458,48 @@
     <div class="mark">
       <svg viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="#0e1012"/></svg>
     </div>
-    <div>
+    <div style="flex:1;">
       <h1>Clipper</h1>
       <p>Tempel link video, dapatkan klip pendek siap unggah.</p>
     </div>
+    <button class="history-btn" id="historyBtn">Riwayat</button>
   </header>
+
+  <div class="history-panel" id="historyPanel">
+    <div id="historyList"><div class="history-empty">Memuat riwayat...</div></div>
+  </div>
 
   <div class="card">
     <label class="field-label">
       <span>Link video</span>
       <span class="hint">satu link per baris untuk proses banyak video sekaligus</span>
     </label>
-    <textarea id="urls" placeholder="https://youtube.com/watch?v=...&#10;https://youtube.com/watch?v=..." class="mono" rows="3"></textarea>
+    <textarea id="urls" placeholder="https://youtube.com/watch?v=...&#10;https://youtube.com/watch?v=... (opsional, baris berikutnya)" class="mono" rows="3"></textarea>
+
+    <button type="button" class="preview-btn" id="previewBtn">Lihat preview & atur posisi</button>
+
+    <div class="preview-panel" id="previewPanel">
+      <div class="template-tabs" id="templateTabs">
+        <button type="button" data-tpl="tiktok" class="active">TikTok</button>
+        <button type="button" data-tpl="reels">IG Reels</button>
+        <button type="button" data-tpl="shorts">YT Shorts</button>
+      </div>
+      <p class="preview-hint">Area gelap = biasanya ketutup ikon/teks bawaan platform. Geser kotak biar subtitle/watermark gak numpuk. Watermark bisa di-resize dari pojok kanan-bawah.</p>
+      <div class="preview-stage" id="previewStage">
+        <img class="preview-thumb" id="previewThumb" style="display:none;">
+        <div class="preview-top-nav" id="previewTopNav"></div>
+        <div class="preview-safezone preview-safezone-right" id="szRight"></div>
+        <div class="preview-safezone preview-safezone-bottom" id="szBottom"></div>
+        <div class="preview-ui-icons" id="previewUiIcons"></div>
+        <div class="preview-box preview-wm-box" id="previewWmBox" style="display:none;">
+          <span>Logo</span>
+          <div class="preview-resize-handle" id="previewWmResize"></div>
+        </div>
+        <div class="preview-box preview-sub-box" id="previewSubBox" style="display:none;">
+          <span>Aa</span>
+        </div>
+      </div>
+    </div>
 
     <div class="controls-row">
       <div style="display:flex; align-items:center; gap:28px; flex-wrap:wrap;">
@@ -269,13 +509,44 @@
           <button type="button" id="inc">+</button>
           <span class="label">klip / video</span>
         </div>
-        <div class="aspect-toggle">
-          <button type="button" id="aspectVertical" class="active"><span class="aspect-icon v"></span>9:16</button>
-          <button type="button" id="aspectHorizontal"><span class="aspect-icon h"></span>16:9</button>
+        <div class="aspect-toggle" id="aspectToggle">
+          <button type="button" data-aspect="9:16" class="active"><span class="aspect-icon v"></span>9:16</button>
+          <button type="button" data-aspect="1:1"><span class="aspect-icon sq"></span>1:1</button>
+          <button type="button" data-aspect="16:9"><span class="aspect-icon h"></span>16:9</button>
         </div>
         <div class="toggle-row">
           <div class="switch" id="subToggle"></div>
           <span>Subtitle otomatis</span>
+        </div>
+        <div class="toggle-row" title="Crop otomatis ikut posisi wajah, bukan crop tengah statis">
+          <div class="switch" id="smartCropToggle"></div>
+          <span>Smart crop (ikuti wajah)</span>
+        </div>
+        <select class="font-select" id="fontSelect">
+          <option value="Arial Black">Arial Black (default)</option>
+          <option value="Impact">Impact</option>
+          <option value="Segoe UI Black">Segoe UI Black</option>
+          <option value="Segoe UI Semibold">Segoe UI Semibold</option>
+          <option value="Calibri Bold">Calibri Bold</option>
+          <option value="Bebas Neue">Bebas Neue</option>
+          <option value="Anton">Anton</option>
+          <option value="Archivo Black">Archivo Black</option>
+          <option value="Poppins">Poppins Bold</option>
+          <option value="Montserrat">Montserrat Bold</option>
+        </select>
+        <div class="toggle-row speaker-row" id="speakerRow">
+          <div class="switch" id="speakerToggle"></div>
+          <span>Warna per pembicara</span>
+        </div>
+        <div class="toggle-row">
+          <div class="switch" id="wmToggle"></div>
+          <span>Watermark logo</span>
+        </div>
+        <div class="wm-upload" id="wmUpload">
+          <img class="wm-thumb" id="wmThumb" style="display:none;">
+          <label class="wm-upload-btn" for="wmFileInput" id="wmUploadLabel">Upload PNG</label>
+          <input type="file" id="wmFileInput" accept="image/png" style="display:none;">
+          <button type="button" class="wm-remove-btn" id="wmRemoveBtn" style="display:none;">Hapus</button>
         </div>
       </div>
       <button class="go-btn" id="goBtn">
@@ -284,7 +555,39 @@
       </button>
     </div>
 
+    <div class="font-preview-box" id="fontPreviewBox">
+      <div class="font-preview-text" id="fontPreviewText">Ini contoh tampilan subtitle kamu</div>
+    </div>
+
+    <div class="style-panel" id="stylePanel">
+      <div class="style-row">
+        <span class="style-label">Warna teks</span>
+        <div class="color-swatches" id="colorSwatches">
+          <button type="button" class="color-swatch active" data-color="FFFFFF" style="background:#FFFFFF"></button>
+          <button type="button" class="color-swatch" data-color="FFD400" style="background:#FFD400"></button>
+          <button type="button" class="color-swatch" data-color="FF4FA3" style="background:#FF4FA3"></button>
+          <button type="button" class="color-swatch" data-color="00E5FF" style="background:#00E5FF"></button>
+          <button type="button" class="color-swatch" data-color="6EE7B7" style="background:#6EE7B7"></button>
+          <input type="color" id="colorPicker" class="color-custom" value="#FFFFFF" title="Warna kustom">
+        </div>
+      </div>
+      <div class="style-row">
+        <span class="style-label">Ukuran font <span class="style-val" id="fontSizeVal">100%</span></span>
+        <input type="range" id="fontSizeSlider" class="style-slider" min="50" max="250" value="100">
+      </div>
+      <p class="preview-hint" style="margin-top:6px;">Posisi subtitle diatur lewat panel "Lihat preview & atur posisi" di atas.</p>
+    </div>
+
     <div class="error-box" id="errorBox"></div>
+    <p class="font-hint" id="fontHint" style="display:none; margin: 10px 0 0; font-size:11.5px; color: var(--text-faint);">
+      Semua font di atas sudah dibundel bersama app, tidak perlu diinstall manual ke Windows.
+    </p>
+    <p class="speaker-hint" id="speakerHint" style="display:none; margin: 10px 0 0; font-size:11.5px; color: var(--text-faint);">
+      Warna berganti otomatis saat ada jeda bicara cukup lama -- ini perkiraan sederhana, bukan deteksi pembicara yang akurat 100%.
+    </p>
+    <p class="wm-hint" id="wmHint" style="display:none; margin: 10px 0 0; font-size:11.5px; color: var(--text-faint);">
+      Logo ditaruh otomatis di pojok kiri atas tiap klip. Format PNG (background transparan disarankan).
+    </p>
   </div>
 
   <div class="progress-section" id="progressSection">
@@ -306,7 +609,6 @@
 <script>
 let clipCount = 8;
 let subtitles = false;
-let aspectRatio = '9:16';
 let polling = null;
 let notifAsked = false;
 
@@ -332,17 +634,184 @@ countEl.onblur = () => setClipCount(clipCount);
 countEl.onkeydown = (e) => { if (e.key === 'Enter') countEl.blur(); };
 
 const subToggle = document.getElementById('subToggle');
-subToggle.onclick = () => { subtitles = !subtitles; subToggle.classList.toggle('on', subtitles); };
+const fontSelect = document.getElementById('fontSelect');
+const fontHint = document.getElementById('fontHint');
+const fontPreviewBox = document.getElementById('fontPreviewBox');
+const fontPreviewText = document.getElementById('fontPreviewText');
+const speakerRow = document.getElementById('speakerRow');
+const speakerToggle = document.getElementById('speakerToggle');
+const speakerHint = document.getElementById('speakerHint');
+let fontName = fontSelect.value;
+let speakerColors = false;
 
-const aspectVerticalBtn = document.getElementById('aspectVertical');
-const aspectHorizontalBtn = document.getElementById('aspectHorizontal');
-function setAspect(value){
-  aspectRatio = value;
-  aspectVerticalBtn.classList.toggle('active', value === '9:16');
-  aspectHorizontalBtn.classList.toggle('active', value === '16:9');
+const smartCropToggle = document.getElementById('smartCropToggle');
+let smartCrop = false;
+smartCropToggle.onclick = () => {
+  smartCrop = !smartCrop;
+  smartCropToggle.classList.toggle('on', smartCrop);
+};
+
+function updateFontPreview(){
+  fontPreviewText.style.fontFamily = `"${fontName}", "Arial Black", sans-serif`;
+  fontPreviewText.style.color = '#' + subtitleColor;
 }
-aspectVerticalBtn.onclick = () => setAspect('9:16');
-aspectHorizontalBtn.onclick = () => setAspect('16:9');
+
+function updateFontVisibility(){
+  fontSelect.classList.toggle('visible', subtitles);
+  fontHint.style.display = subtitles ? 'block' : 'none';
+  fontPreviewBox.classList.toggle('visible', subtitles);
+  speakerRow.style.display = subtitles ? 'flex' : 'none';
+  speakerHint.style.display = (subtitles && speakerColors) ? 'block' : 'none';
+  stylePanel.classList.toggle('visible', subtitles);
+  if (subtitles) updateFontPreview();
+}
+
+subToggle.onclick = () => {
+  subtitles = !subtitles;
+  subToggle.classList.toggle('on', subtitles);
+  updateFontVisibility();
+  if (previewLoaded) previewSubBox.style.display = subtitles ? 'flex' : 'none';
+};
+speakerToggle.onclick = () => {
+  speakerColors = !speakerColors;
+  speakerToggle.classList.toggle('on', speakerColors);
+  updateFontVisibility();
+};
+
+// ---------- Style panel: warna, ukuran, posisi ----------
+const stylePanel = document.getElementById('stylePanel');
+const colorSwatches = document.getElementById('colorSwatches');
+const colorPicker = document.getElementById('colorPicker');
+const fontSizeSlider = document.getElementById('fontSizeSlider');
+const fontSizeVal = document.getElementById('fontSizeVal');
+
+let subtitleColor = 'FFFFFF';
+let fontSizePct = 100;
+// Posisi subtitle sekarang HANYA diatur lewat drag di panel preview (lihat
+// subPosXPct/subPosYPct di bawah) -- subPosCustomized jadi true begitu user
+// beneran geser kotaknya, biar yang belum pernah buka preview tetap pakai
+// posisi default yang sudah dikalibrasi (bukan mendadak dipaksa custom).
+let subPosCustomized = false;
+
+colorSwatches.querySelectorAll('.color-swatch').forEach(sw => {
+  sw.onclick = () => {
+    subtitleColor = sw.dataset.color;
+    colorSwatches.querySelectorAll('.color-swatch').forEach(s => s.classList.toggle('active', s === sw));
+    updateFontPreview();
+  };
+});
+colorPicker.oninput = () => {
+  subtitleColor = colorPicker.value.replace('#', '').toUpperCase();
+  colorSwatches.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  updateFontPreview();
+};
+
+fontSizeSlider.oninput = () => {
+  fontSizePct = parseInt(fontSizeSlider.value, 10);
+  fontSizeVal.textContent = fontSizePct + '%';
+  fontPreviewText.style.fontSize = (22 * fontSizePct / 100).toFixed(0) + 'px';
+};
+
+fontSelect.onchange = () => { fontName = fontSelect.value; updateFontPreview(); };
+updateFontVisibility();
+
+// ---------- Watermark ----------
+let useWatermark = false;
+let watermarkExists = false;
+
+const wmToggle = document.getElementById('wmToggle');
+const wmUpload = document.getElementById('wmUpload');
+const wmThumb = document.getElementById('wmThumb');
+const wmFileInput = document.getElementById('wmFileInput');
+const wmUploadLabel = document.getElementById('wmUploadLabel');
+const wmRemoveBtn = document.getElementById('wmRemoveBtn');
+const wmHint = document.getElementById('wmHint');
+
+function updateWmVisibility(){
+  wmUpload.classList.toggle('visible', useWatermark);
+  wmHint.style.display = useWatermark ? 'block' : 'none';
+}
+
+function updateWmThumb(){
+  if (watermarkExists){
+    wmThumb.src = '/watermark/logo.png?t=' + Date.now();
+    wmThumb.style.display = 'block';
+    wmRemoveBtn.style.display = 'inline-block';
+    wmUploadLabel.textContent = 'Ganti PNG';
+  } else {
+    wmThumb.style.display = 'none';
+    wmRemoveBtn.style.display = 'none';
+    wmUploadLabel.textContent = 'Upload PNG';
+  }
+}
+
+wmToggle.onclick = () => {
+  useWatermark = !useWatermark;
+  wmToggle.classList.toggle('on', useWatermark);
+  updateWmVisibility();
+  if (previewLoaded) previewWmBox.style.display = useWatermark ? 'flex' : 'none';
+};
+
+wmFileInput.onchange = async () => {
+  const file = wmFileInput.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  wmUploadLabel.textContent = 'Mengunggah...';
+  try {
+    const res = await fetch('/api/watermark', {method: 'POST', body: formData});
+    const data = await res.json();
+    if (!data.ok){
+      errorBox.style.display = 'block';
+      errorBox.textContent = data.error;
+      wmUploadLabel.textContent = 'Upload PNG';
+      return;
+    }
+    watermarkExists = true;
+    updateWmThumb();
+  } catch(e) {
+    errorBox.style.display = 'block';
+    errorBox.textContent = 'Gagal mengunggah logo.';
+    wmUploadLabel.textContent = 'Upload PNG';
+  }
+  wmFileInput.value = '';
+};
+
+wmRemoveBtn.onclick = async () => {
+  await fetch('/api/watermark', {method: 'DELETE'});
+  watermarkExists = false;
+  updateWmThumb();
+};
+
+// cek status watermark yang sudah pernah diupload sebelumnya (persist antar sesi)
+(async () => {
+  try {
+    const res = await fetch('/api/watermark');
+    const data = await res.json();
+    watermarkExists = data.exists;
+    updateWmThumb();
+  } catch(e) { /* abaikan kalau gagal, anggap belum ada watermark */ }
+})();
+updateWmVisibility();
+
+// Rasio dipilih di awal (bisa lebih dari satu) -- semua rasio yang dipilih
+// digenerate sekaligus dalam satu proses per klip, jadi hasilnya selalu
+// pasti ada (bukan digenerate belakangan per-permintaan).
+const aspectToggle = document.getElementById('aspectToggle');
+let selectedAspects = new Set(['9:16']);
+
+aspectToggle.querySelectorAll('button').forEach(btn => {
+  btn.onclick = () => {
+    const value = btn.dataset.aspect;
+    if (selectedAspects.has(value)){
+      if (selectedAspects.size === 1) return; // minimal 1 rasio harus tetap dipilih
+      selectedAspects.delete(value);
+    } else {
+      selectedAspects.add(value);
+    }
+    btn.classList.toggle('active', selectedAspects.has(value));
+  };
+});
 
 const goBtn = document.getElementById('goBtn');
 const goLabel = document.getElementById('goLabel');
@@ -386,103 +855,165 @@ function renderLog(lines){
 }
 
 function escapeHtml(s){
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // PENTING: tanda kutip ganda/tunggal WAJIB di-escape juga -- fungsi ini
+  // dipakai buat nulis data JSON (data-files dsb) ke dalam atribut HTML yang
+  // sendirinya dibungkus tanda kutip ganda. Tanpa escape ini, begitu ada
+  // tanda kutip di dalam data (dan JSON.stringify PASTI menghasilkan banyak
+  // tanda kutip), atribut HTML-nya "putus" di tengah jalan dan datanya jadi
+  // rusak waktu dibaca ulang lewat .dataset -- ini akar masalah kenapa
+  // pemilihan rasio, edit klip, dst sebelumnya selalu gagal diam-diam.
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 let lastJobsSignature = '';
+
+const ASPECT_PRIORITY = ["9:16", "1:1", "16:9"];
+const ASPECT_CSS_RATIO = {"9:16": "9/16", "1:1": "1/1", "16:9": "16/9"};
+
+function pickDefaultAspect(filesObj){
+  for (const a of ASPECT_PRIORITY) if (filesObj[a]) return a;
+  return Object.keys(filesObj)[0];
+}
+
+function buildJobHtml(job, extraClass){
+  if (!job.results.length) return '';
+  const cards = job.results.map((r, idx) => {
+    const filesObj = r.files || (r.file ? {"9:16": r.file} : {});
+    const aspectKeys = Object.keys(filesObj);
+    const defaultAspect = pickDefaultAspect(filesObj);
+    const defaultFile = filesObj[defaultAspect];
+    const filesJson = escapeHtml(JSON.stringify(filesObj));
+
+    // Kalau klip ini digenerate dengan lebih dari 1 rasio sekaligus (dipilih
+    // di awal), tampilkan selector kecil buat pindah lihat/unduh versi mana.
+    const aspectSelector = aspectKeys.length > 1 ? `
+      <div class="clip-aspect-mini">
+        ${aspectKeys.map(a => `<button type="button" data-aspect="${a}" class="${a === defaultAspect ? 'active' : ''}">${a}</button>`).join('')}
+      </div>` : '';
+
+    return `
+    <div class="clip-card" data-dir="${escapeHtml(job.out_dir)}" data-files="${filesJson}" data-current="${defaultAspect}" data-clip-index="${idx}">
+      ${aspectSelector}
+      <video src="/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(defaultFile)}" controls preload="none" style="aspect-ratio: ${ASPECT_CSS_RATIO[defaultAspect] || '9/16'}"></video>
+      <div class="clip-meta">
+        <span class="clip-dur">${r.duration}d</span>
+        <div class="clip-title">${escapeHtml(r.title)}</div>
+        ${r.caption ? `<div class="clip-caption">${escapeHtml(r.caption)}</div>` : ''}
+        ${r.hashtags ? `<div class="clip-hashtags">${escapeHtml(r.hashtags)}</div>` : ''}
+        <div class="clip-actions">
+          <a class="clip-dl" href="/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(defaultFile)}" download>Unduh</a>
+          ${(r.caption || r.hashtags) ? `<button class="clip-copy" data-caption="${escapeHtml(r.caption||'')}" data-hashtags="${escapeHtml(r.hashtags||'')}">Copy</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  }).join('');
+
+  return `
+    <div class="job-block ${extraClass||''}">
+      <div class="results-head">
+        <h2>${escapeHtml(job.title)}</h2>
+        <div class="dl-actions">
+          <button class="dl-action-btn dl-open" data-dir="${escapeHtml(job.out_dir)}">Buka folder</button>
+          <button class="dl-action-btn dl-zip" data-dir="${escapeHtml(job.out_dir)}">Unduh ZIP</button>
+          <button class="dl-action-btn dl-all" data-dir="${escapeHtml(job.out_dir)}">Unduh semua (satu-satu)</button>
+        </div>
+      </div>
+      <span class="out-dir-label">output/${escapeHtml(job.out_dir)}</span>
+      <div class="grid">${cards}</div>
+    </div>
+  `;
+}
+
+// Event delegation: satu listener untuk semua tombol clip-copy/dl-open/dl-zip/dl-all,
+// baik di panel hasil maupun panel riwayat -- tidak perlu re-bind tiap render.
+document.body.addEventListener('click', async (e) => {
+  const aspectBtn = e.target.closest('.clip-aspect-mini button');
+  if (aspectBtn){
+    const card = aspectBtn.closest('.clip-card');
+    const files = JSON.parse(card.dataset.files);
+    const aspect = aspectBtn.dataset.aspect;
+    const fname = files[aspect];
+    if (!fname) return;
+
+    card.dataset.current = aspect;
+    card.querySelectorAll('.clip-aspect-mini button').forEach(b => b.classList.toggle('active', b.dataset.aspect === aspect));
+    const url = `/clips/${encodeURIComponent(card.dataset.dir)}/${encodeURIComponent(fname)}`;
+    const videoEl = card.querySelector('video');
+    videoEl.src = url;
+    videoEl.style.aspectRatio = ASPECT_CSS_RATIO[aspect] || '9/16';
+    card.querySelector('.clip-dl').href = url;
+    return;
+  }
+
+  const copyBtn = e.target.closest('.clip-copy');
+  if (copyBtn){
+    const text = [copyBtn.dataset.caption, copyBtn.dataset.hashtags].filter(Boolean).join('\n\n');
+    await navigator.clipboard.writeText(text);
+    copyBtn.textContent = 'Tersalin!';
+    copyBtn.classList.add('copied');
+    setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1500);
+    return;
+  }
+
+  const openBtn = e.target.closest('.dl-open');
+  if (openBtn){
+    const original = openBtn.textContent;
+    openBtn.textContent = 'Membuka...';
+    try {
+      const res = await fetch(`/api/open_folder/${encodeURIComponent(openBtn.dataset.dir)}`, {method: 'POST'});
+      const data = await res.json();
+      if (!data.ok){ openBtn.textContent = 'Gagal buka'; setTimeout(() => openBtn.textContent = original, 1500); return; }
+    } catch(err) {
+      openBtn.textContent = 'Gagal buka';
+      setTimeout(() => openBtn.textContent = original, 1500);
+      return;
+    }
+    openBtn.textContent = original;
+    return;
+  }
+
+  const zipBtn = e.target.closest('.dl-zip');
+  if (zipBtn){
+    window.location.href = `/api/download_zip/${encodeURIComponent(zipBtn.dataset.dir)}`;
+    return;
+  }
+
+  const allBtn = e.target.closest('.dl-all');
+  if (allBtn){
+    const jobList = allBtn.closest('.history-panel') ? historyJobs : currentJobs;
+    const job = jobList.find(j => j.out_dir === allBtn.dataset.dir);
+    if (!job) return;
+    allBtn.disabled = true;
+    const original = allBtn.textContent;
+    for (let i = 0; i < job.results.length; i++){
+      const r = job.results[i];
+      allBtn.textContent = `Mengunduh ${i+1}/${job.results.length}...`;
+      const a = document.createElement('a');
+      a.href = `/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(r.file)}`;
+      a.download = r.file;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      await new Promise(res => setTimeout(res, 500));
+    }
+    allBtn.textContent = original;
+    allBtn.disabled = false;
+    return;
+  }
+
+  const historyHead = e.target.closest('.history-item-head');
+  if (historyHead){
+    historyHead.closest('.history-item').classList.toggle('open');
+  }
+});
 
 function renderJobs(jobs){
   const signature = JSON.stringify(jobs.map(j => [j.out_dir, j.results.length]));
   if (signature === lastJobsSignature) return;
   lastJobsSignature = signature;
-
-  resultsSection.innerHTML = jobs.map(job => {
-    if (!job.results.length) return '';
-    const cards = job.results.map(r => `
-      <div class="clip-card">
-        <video src="/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(r.file)}" controls preload="none"></video>
-        <div class="clip-meta">
-          <span class="clip-dur">${r.duration}d</span>
-          <div class="clip-title">${escapeHtml(r.title)}</div>
-          ${r.caption ? `<div class="clip-caption">${escapeHtml(r.caption)}</div>` : ''}
-          ${r.hashtags ? `<div class="clip-hashtags">${escapeHtml(r.hashtags)}</div>` : ''}
-          <div class="clip-actions">
-            <a class="clip-dl" href="/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(r.file)}" download>Unduh</a>
-            ${(r.caption || r.hashtags) ? `<button class="clip-copy" data-caption="${escapeHtml(r.caption||'')}" data-hashtags="${escapeHtml(r.hashtags||'')}">Copy</button>` : ''}
-          </div>
-        </div>
-      </div>
-    `).join('');
-
-    return `
-      <div class="job-block">
-        <div class="results-head">
-          <h2>${escapeHtml(job.title)}</h2>
-          <div class="dl-actions">
-            <button class="dl-action-btn dl-open" data-dir="${escapeHtml(job.out_dir)}">Buka folder</button>
-            <button class="dl-action-btn dl-zip" data-dir="${escapeHtml(job.out_dir)}">Unduh ZIP</button>
-            <button class="dl-action-btn dl-all" data-dir="${escapeHtml(job.out_dir)}">Unduh semua (satu-satu)</button>
-          </div>
-        </div>
-        <span class="out-dir-label">output/${escapeHtml(job.out_dir)}</span>
-        <div class="grid">${cards}</div>
-      </div>
-    `;
-  }).join('');
-
-  // pasang ulang event handler tiap render (innerHTML rebuild menghapus listener lama)
-  resultsSection.querySelectorAll('.clip-copy').forEach(btn => {
-    btn.onclick = async () => {
-      const text = [btn.dataset.caption, btn.dataset.hashtags].filter(Boolean).join('\n\n');
-      await navigator.clipboard.writeText(text);
-      btn.textContent = 'Tersalin!';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
-    };
-  });
-
-  resultsSection.querySelectorAll('.dl-open').forEach(btn => {
-    btn.onclick = async () => {
-      const original = btn.textContent;
-      btn.textContent = 'Membuka...';
-      try {
-        const res = await fetch(`/api/open_folder/${encodeURIComponent(btn.dataset.dir)}`, {method: 'POST'});
-        const data = await res.json();
-        if (!data.ok){ btn.textContent = 'Gagal buka'; setTimeout(() => btn.textContent = original, 1500); return; }
-      } catch(e) {
-        btn.textContent = 'Gagal buka';
-        setTimeout(() => btn.textContent = original, 1500);
-        return;
-      }
-      btn.textContent = original;
-    };
-  });
-
-  resultsSection.querySelectorAll('.dl-zip').forEach(btn => {
-    btn.onclick = () => { window.location.href = `/api/download_zip/${encodeURIComponent(btn.dataset.dir)}`; };
-  });
-
-  resultsSection.querySelectorAll('.dl-all').forEach(btn => {
-    btn.onclick = async () => {
-      const job = currentJobs.find(j => j.out_dir === btn.dataset.dir);
-      if (!job) return;
-      btn.disabled = true;
-      const original = btn.textContent;
-      for (let i = 0; i < job.results.length; i++){
-        const r = job.results[i];
-        btn.textContent = `Mengunduh ${i+1}/${job.results.length}...`;
-        const a = document.createElement('a');
-        a.href = `/clips/${encodeURIComponent(job.out_dir)}/${encodeURIComponent(r.file)}`;
-        a.download = r.file;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        await new Promise(res => setTimeout(res, 500));
-      }
-      btn.textContent = original;
-      btn.disabled = false;
-    };
-  });
+  resultsSection.innerHTML = jobs.map(job => buildJobHtml(job)).join('');
 }
 
 let currentJobs = [];
@@ -525,6 +1056,186 @@ async function poll(){
   }
 }
 
+// ---------- Panel preview: drag posisi watermark & subtitle ----------
+const previewBtn = document.getElementById('previewBtn');
+const previewPanel = document.getElementById('previewPanel');
+const previewStage = document.getElementById('previewStage');
+const previewThumb = document.getElementById('previewThumb');
+const previewWmBox = document.getElementById('previewWmBox');
+const previewSubBox = document.getElementById('previewSubBox');
+const previewWmResize = document.getElementById('previewWmResize');
+const templateTabs = document.getElementById('templateTabs');
+const previewUiIcons = document.getElementById('previewUiIcons');
+const previewTopNav = document.getElementById('previewTopNav');
+
+// Posisi/ukuran dalam persen (0-100), dipakai backend sebagai wm_pos_x_pct dst.
+// Default watermark: pojok kiri atas (match default lama di cut_clip).
+let wmPosXPct = 3, wmPosYPct = 3, wmSizePct = 18;
+let subPosXPct = 50, subPosYPct = 92;
+let previewLoaded = false;
+let currentTemplate = 'tiktok';
+
+// Navigasi atas khas tiap platform -- biar makin mirip aslinya dan user
+// tau area ini juga sebaiknya jangan ketutup watermark/subtitle.
+const TEMPLATE_TOPNAV = {
+  tiktok: `<span style="position:absolute;left:4%;font-size:10px;opacity:0.8;">📡 LIVE</span><span>Following</span><span class="active">For You</span><span style="position:absolute;right:4%;font-size:14px;">🔍</span>`,
+  reels: `<span style="position:absolute;left:4%;font-size:16px;">+</span><span class="active">Reels</span><span style="opacity:0.75;">Teman</span>`,
+  shorts: `<span style="position:absolute;right:4%;font-size:13px;display:flex;gap:14px;">🔍 ⋮</span>`,
+};
+
+const TEMPLATE_ICONS = {
+  tiktok: `
+    <div class="ui-icon-col">
+      <div class="dot avatar"></div>
+      <div class="item"><span class="glyph">♡</span><span class="count">59,8rb</span></div>
+      <div class="item"><span class="glyph">🗨</span><span class="count">108</span></div>
+      <div class="item"><span class="glyph">🔖</span><span class="count">4.846</span></div>
+      <div class="item"><span class="glyph">➤</span><span class="count">697</span></div>
+      <div class="dot disc"></div>
+    </div>
+    <div class="ui-bottom-text">
+      <span class="handle">@namaakun</span> ✓
+      <span class="caption">Caption video di sini, bisa 1-2 baris...</span>
+      <span class="sound">♪ Original sound - namaakun</span>
+    </div>
+  `,
+  reels: `
+    <div class="ui-icon-col">
+      <div class="item"><span class="glyph">♡</span><span class="count">59,8rb</span></div>
+      <div class="item"><span class="glyph">🗨</span><span class="count">108</span></div>
+      <div class="item"><span class="glyph">🔁</span><span class="count">4.846</span></div>
+      <div class="item"><span class="glyph" style="font-size:22px;">➤</span></div>
+      <div class="item"><span class="glyph" style="font-size:20px;">☰</span></div>
+      <div class="dot disc" style="width:24px;height:24px;border-radius:6px;"></div>
+    </div>
+    <div class="ui-bottom-text">
+      <span class="handle">namaakun</span><span class="follow-btn">Ikuti</span>
+      <span class="caption">🎬🎞 : Scary Movie (2026) (Scary Movie 6) Scary...</span>
+    </div>
+  `,
+  shorts: `
+    <div class="ui-icon-col">
+      <div class="item"><span class="glyph">👍</span><span class="count">21</span></div>
+      <div class="item"><span class="glyph">👎</span></div>
+      <div class="item"><span class="glyph">🗨</span><span class="count">12</span></div>
+      <div class="item"><span class="glyph" style="font-size:22px;">➤</span><span class="count">Bagikan</span></div>
+      <div class="item"><span class="glyph" style="font-size:20px;">🔁</span><span class="count">Remix</span></div>
+      <div class="dot avatar" style="border-color:#fff;"></div>
+    </div>
+    <div class="ui-bottom-text">
+      <span class="handle">@Fateh2r</span><span class="follow-btn solid">Subscribe</span>
+      <span class="caption">Sistem Waktu 30 Hari di Blood of Dawnwalker Itu Gila...</span>
+    </div>
+  `,
+};
+
+function applyTemplate(tpl){
+  currentTemplate = tpl;
+  previewUiIcons.innerHTML = TEMPLATE_ICONS[tpl] || '';
+  previewTopNav.innerHTML = TEMPLATE_TOPNAV[tpl] || '';
+  templateTabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tpl === tpl));
+}
+
+templateTabs.querySelectorAll('button').forEach(btn => {
+  btn.onclick = () => applyTemplate(btn.dataset.tpl);
+});
+
+function updatePreviewBoxes(){
+  previewWmBox.style.left = wmPosXPct + '%';
+  previewWmBox.style.top = wmPosYPct + '%';
+  previewWmBox.style.width = wmSizePct + '%';
+  previewWmBox.dataset.x = wmPosXPct;
+  previewWmBox.dataset.y = wmPosYPct;
+  // subtitle box: posX/posY merepresentasikan titik TENGAH (anchor \an5),
+  // jadi kotak digeser setengah lebar/tinggi-nya sendiri lewat calc().
+  // Posisi LOGIS aslinya (subPosXPct/Y) disimpan terpisah di data-attribute
+  // -- jangan parseFloat balik dari style.left, soalnya isinya calc(...)
+  // dan parseFloat gagal baca itu (selalu balik NaN -> kebaca 0 -> box
+  // kelihatan "lompat" ke pojok kiri atas tiap mulai drag).
+  previewSubBox.style.left = `calc(${subPosXPct}% - 35%)`;
+  previewSubBox.style.top = `calc(${subPosYPct}% - 5.5%)`;
+  previewSubBox.dataset.x = subPosXPct;
+  previewSubBox.dataset.y = subPosYPct;
+}
+
+previewBtn.onclick = async () => {
+  applyTemplate(currentTemplate);
+  previewWmBox.style.display = useWatermark ? 'flex' : 'none';
+  previewSubBox.style.display = subtitles ? 'flex' : 'none';
+  updatePreviewBoxes();
+  previewPanel.classList.add('open');
+  previewLoaded = true;
+
+  // thumbnail asli itu bonus (kalau ada link video valid) -- BUKAN syarat
+  // buat buka preview, jadi gagal diam-diam saja tanpa mengganggu.
+  const raw = document.getElementById('urls').value.trim();
+  const firstUrl = raw.split('\n').map(u => u.trim()).filter(Boolean)[0];
+  if (!firstUrl) return;
+  try {
+    const res = await fetch('/api/thumbnail', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url: firstUrl}),
+    });
+    const data = await res.json();
+    if (data.ok && data.thumbnail){
+      previewThumb.src = data.thumbnail;
+      previewThumb.style.display = 'block';
+    }
+  } catch(e) { /* abaikan -- thumbnail cuma bonus visual, bukan wajib */ }
+};
+
+function makeDraggable(box, onMove){
+  let dragging = false, startX = 0, startY = 0, startLeftPct = 0, startTopPct = 0;
+  box.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.preview-resize-handle')) return; // biar gak konflik sama resize
+    dragging = true;
+    box.setPointerCapture(e.pointerId);
+    startX = e.clientX; startY = e.clientY;
+    const rect = previewStage.getBoundingClientRect();
+    startLeftPct = parseFloat(box.dataset.x) || 0;
+    startTopPct = parseFloat(box.dataset.y) || 0;
+    box._stageRect = rect;
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const rect = box._stageRect;
+    const dxPct = (e.clientX - startX) / rect.width * 100;
+    const dyPct = (e.clientY - startY) / rect.height * 100;
+    onMove(Math.max(0, Math.min(100, startLeftPct + dxPct)), Math.max(0, Math.min(100, startTopPct + dyPct)));
+  });
+  box.addEventListener('pointerup', () => { dragging = false; });
+  box.addEventListener('pointercancel', () => { dragging = false; });
+}
+
+makeDraggable(previewWmBox, (x, y) => {
+  wmPosXPct = Math.round(x); wmPosYPct = Math.round(y);
+  updatePreviewBoxes();
+});
+makeDraggable(previewSubBox, (x, y) => {
+  subPosXPct = Math.round(x); subPosYPct = Math.round(y);
+  subPosCustomized = true;
+  updatePreviewBoxes();
+});
+
+previewWmResize.addEventListener('pointerdown', (e) => {
+  e.stopPropagation();
+  const startX = e.clientX;
+  const startSize = wmSizePct;
+  const rect = previewStage.getBoundingClientRect();
+  previewWmResize.setPointerCapture(e.pointerId);
+  function onMove(ev){
+    const dxPct = (ev.clientX - startX) / rect.width * 100;
+    wmSizePct = Math.max(5, Math.min(60, Math.round(startSize + dxPct)));
+    updatePreviewBoxes();
+  }
+  function onUp(){
+    previewWmResize.removeEventListener('pointermove', onMove);
+    previewWmResize.removeEventListener('pointerup', onUp);
+  }
+  previewWmResize.addEventListener('pointermove', onMove);
+  previewWmResize.addEventListener('pointerup', onUp);
+});
+
 goBtn.onclick = async () => {
   setClipCount(clipCount); // pastikan nilai valid (1-20) walau input belum sempat di-blur
   const raw = document.getElementById('urls').value.trim();
@@ -558,7 +1269,15 @@ goBtn.onclick = async () => {
   const res = await fetch('/api/start', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({urls, clips: clipCount, subtitles, aspect: aspectRatio})
+    body: JSON.stringify({
+      urls, clips: clipCount, subtitles, aspects: Array.from(selectedAspects),
+      font: fontName, watermark: useWatermark, speaker_colors: speakerColors,
+      font_color: subtitleColor, font_size_pct: fontSizePct,
+      pos_x_pct: subPosCustomized ? subPosXPct : null,
+      pos_y_pct: subPosCustomized ? subPosYPct : null,
+      smart_crop: smartCrop,
+      wm_size_pct: wmSizePct, wm_pos_x_pct: wmPosXPct, wm_pos_y_pct: wmPosYPct,
+    })
   });
   const data = await res.json();
   if (!data.ok){
@@ -572,6 +1291,55 @@ goBtn.onclick = async () => {
   polling = setInterval(poll, 1200);
   poll();
 };
+
+// ---------- Riwayat ----------
+let historyJobs = [];
+let historyLoaded = false;
+
+const historyBtn = document.getElementById('historyBtn');
+const historyPanel = document.getElementById('historyPanel');
+const historyList = document.getElementById('historyList');
+
+function formatDate(ts){
+  const d = new Date(ts * 1000);
+  return d.toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+
+async function loadHistory(){
+  historyList.innerHTML = '<div class="history-empty">Memuat riwayat...</div>';
+  try {
+    const res = await fetch('/api/history');
+    const data = await res.json();
+    historyJobs = data.jobs;
+    if (!historyJobs.length){
+      historyList.innerHTML = '<div class="history-empty">Belum ada riwayat. Video yang sudah diproses akan muncul di sini.</div>';
+      return;
+    }
+    historyList.innerHTML = historyJobs.map(job => `
+      <div class="history-item">
+        <div class="history-item-head">
+          <div>
+            <div class="history-item-title">${escapeHtml(job.title)}</div>
+            <div class="history-item-meta">${job.results.length} klip &middot; ${formatDate(job.modified)}</div>
+          </div>
+          <span class="history-chevron">&#9656;</span>
+        </div>
+        <div class="history-item-body">${buildJobHtml(job)}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    historyList.innerHTML = '<div class="history-empty">Gagal memuat riwayat.</div>';
+  }
+  historyLoaded = true;
+}
+
+historyBtn.onclick = () => {
+  const willOpen = !historyPanel.classList.contains('open');
+  historyPanel.classList.toggle('open', willOpen);
+  historyBtn.textContent = willOpen ? 'Tutup riwayat' : 'Riwayat';
+  if (willOpen && !historyLoaded) loadHistory();
+};
+
 </script>
 </body>
 </html>

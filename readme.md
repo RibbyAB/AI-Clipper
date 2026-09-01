@@ -1,23 +1,37 @@
 # AI Clipper
 
-Otomatis mengubah video panjang (dari link) menjadi beberapa klip pendek
-vertikal (9:16) siap upload ke TikTok / Reels / YouTube Shorts, memakai AI
-untuk memilih momen paling menarik.
+Web app lokal yang otomatis mengubah video panjang (dari link YouTube) menjadi
+beberapa klip pendek siap upload ke TikTok / Reels / YouTube Shorts —
+lengkap dengan caption dan hashtag yang di-generate AI.
 
-Video sumber hanya di-download sementara ke folder temp dan **otomatis
-dihapus** setelah proses selesai — tidak menuhin storage.
+**Tech stack:** Python, Flask, faster-whisper (speech-to-text), Groq LLM API,
+ffmpeg, yt-dlp, vanilla JS/HTML/CSS.
+
+## Fitur
+
+- 🔗 **Queue banyak link sekaligus** — tempel beberapa link video, diproses berurutan otomatis
+- 🤖 **AI cari momen menarik otomatis** dari transkrip video (Groq LLM, gratis)
+- ✂️ **Auto-crop** ke rasio 9:16 (vertikal) atau 16:9 (horizontal)
+- 📝 **Subtitle otomatis** (opsional, di-burn langsung ke video)
+- ✍️ **Caption + hashtag siap-pakai** untuk tiap klip, tinggal copy-paste
+- ⚡ **GPU-accelerated** transcription (otomatis fallback ke CPU kalau GPU tidak tersedia)
+- 🔔 Notifikasi browser saat proses selesai
+- 📦 Download per-klip, ZIP semua sekaligus, atau buka folder hasil langsung
 
 ## Alur kerja
 
 ```
-Link video --> download sementara --> transkrip (Whisper)
-           --> AI cari momen menarik (Claude) --> potong + crop vertikal
-           --> (opsional) subtitle otomatis --> klip siap upload
+Link video --> download sementara --> transkrip (faster-whisper)
+           --> AI cari momen menarik + caption/hashtag (Groq)
+           --> potong + crop + subtitle (ffmpeg) --> klip siap upload
 ```
 
-Auto-upload ke TikTok/Reels/YouTube belum termasuk di versi ini karena
-butuh akun developer & OAuth di masing-masing platform — nanti ditambahkan
-sebagai tahap berikutnya begitu akunnya siap.
+Video sumber hanya di-download sementara dan **otomatis dihapus** setelah
+proses selesai — tidak menuhin storage jangka panjang.
+
+## Screenshot
+
+<!-- TODO: tempel screenshot/GIF web UI di sini -->
 
 ## Instalasi
 
@@ -30,71 +44,58 @@ sebagai tahap berikutnya begitu akunnya siap.
    pip install -r requirements.txt
    ```
 
-3. Siapkan API key Groq (**gratis**, untuk deteksi momen menarik):
-   - Daftar/masuk ke [console.groq.com](https://console.groq.com) (cukup pakai akun Google, tidak perlu kartu kredit)
+3. Siapkan API key Groq (**gratis**, untuk deteksi momen menarik & generate caption):
+   - Daftar/masuk ke [console.groq.com](https://console.groq.com)
    - Buat API key di menu **API Keys**
    - Set sebagai environment variable:
      ```bash
      export GROQ_API_KEY="gsk_xxxxxxxx"
      ```
      (Windows PowerShell: `$env:GROQ_API_KEY="gsk_xxxxxxxx"`)
-   - Free tier Groq punya batas jumlah request per hari/menit (cukup untuk pemakaian normal). Kalau kena limit, tunggu beberapa saat lalu coba lagi.
 
 ## Mempercepat pakai GPU NVIDIA (otomatis)
 
 App ini pakai `faster-whisper`, yang otomatis mendeteksi dan memakai GPU
-NVIDIA kalau tersedia -- tidak perlu instalasi tambahan apa pun. Kalau GPU
-tidak terdeteksi atau gagal dipakai karena alasan apa pun, otomatis jalan
-di CPU sebagai gantinya (lebih lambat, tapi tetap berfungsi).
-
-Cek driver NVIDIA sudah terpasang (opsional, cuma buat memastikan): buka
-Command Prompt, ketik `nvidia-smi`. Kalau muncul tabel info GPU, driver
-sudah siap. Kalau belum ada, install driver terbaru dari
-[nvidia.com/drivers](https://www.nvidia.com/drivers).
-
-Saat pertama kali dijalankan, model Whisper akan didownload otomatis dari
-Hugging Face (butuh koneksi internet, cuma sekali di awal lalu tersimpan
-di cache lokal untuk pemakaian berikutnya).
+NVIDIA kalau tersedia — tidak perlu instalasi tambahan apa pun. Kalau GPU
+gagal dipakai karena alasan apa pun, otomatis fallback ke CPU.
 
 ## Cara pakai
 
+**Web UI (disarankan):**
 ```bash
-python clipper.py "https://youtube.com/watch?v=xxxxxxxx" --clips 8
+python app.py
 ```
+Browser otomatis terbuka ke `http://127.0.0.1:5000`. Tempel link video
+(satu per baris untuk beberapa video sekaligus), atur jumlah klip & rasio,
+klik "Buat klip".
 
-Opsi yang tersedia:
+**CLI (command line):**
+```bash
+python clipper.py "https://youtube.com/watch?v=xxxxxxxx" --clips 8 --aspect 9:16
+```
 
 | Opsi | Default | Keterangan |
 |---|---|---|
 | `--clips N` | 8 | Jumlah klip yang dihasilkan |
 | `--subtitles` | mati | Bakar subtitle otomatis ke video |
+| `--aspect` | `9:16` | Rasio output: `9:16` (vertikal) atau `16:9` (horizontal) |
 | `--outdir folder` | `output` | Folder tempat klip disimpan |
-
-Contoh dengan subtitle:
-```bash
-python clipper.py "https://youtube.com/watch?v=xxxxxxxx" --clips 10 --subtitles
-```
 
 ## Output
 
-Setelah selesai, folder `output/` berisi:
-- `01-judul-klip.mp4`, `02-judul-klip.mp4`, dst — klip video vertikal siap upload
-- `moments.json` — detail tiap klip (timestamp asli, judul, alasan AI memilihnya)
+Tiap video dapat subfolder sendiri di `output/`, berisi:
+- `01-judul-klip.mp4`, `02-judul-klip.mp4`, dst — klip video siap upload
+- `moments.json` — detail tiap klip (timestamp, judul, caption, hashtag)
 
-## Catatan performa
+## Arsitektur singkat
 
-- Model Whisper default adalah `small` (cukup akurat, tidak terlalu berat).
-  Untuk hasil transkrip lebih akurat (tapi lebih lambat & butuh GPU/RAM
-  lebih besar), set:
-  ```bash
-  export CLIPPER_WHISPER_MODEL=medium
-  ```
-- Video panjang (>1 jam) bisa memakan waktu cukup lama untuk transkrip
-  di komputer tanpa GPU. Ini normal.
+- `clipper.py` — core pipeline: download (yt-dlp) → transkrip (faster-whisper)
+  → cari momen + caption (Groq LLM API) → potong & crop (ffmpeg)
+- `web_app.py` — Flask server, queue management, REST API untuk web UI
+- `templates/index.html` — single-page web UI (vanilla JS, tanpa framework)
 
 ## Rencana pengembangan selanjutnya
 
-- [ ] Auto-upload ke TikTok (butuh TikTok Developer App + Content Posting API)
-- [ ] Auto-upload ke YouTube Shorts (butuh Google Cloud project + YouTube Data API)
-- [ ] Auto-upload ke Instagram Reels (butuh Meta App + Instagram Graph API)
-- [ ] Mode "watch folder" biar tinggal taruh link di file lalu diproses otomatis
+- [ ] Auto-upload ke TikTok (Content Posting API, menunggu approval developer app)
+- [ ] Auto-upload ke YouTube Shorts / Instagram Reels
+- [ ] Mode "watch folder"
