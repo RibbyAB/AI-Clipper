@@ -91,7 +91,7 @@ Tiap video dapat subfolder sendiri di `output/`, berisi:
 
 - `clipper.py` — core pipeline: download (yt-dlp) → transkrip (faster-whisper)
   → cari momen + caption (Groq LLM API) → potong & crop (ffmpeg)
-- `web_app.py` — Flask server, queue management, REST API untuk web UI
+- `app.py` — Flask server, queue management, REST API untuk web UI
 - `templates/index.html` — single-page web UI (vanilla JS, tanpa framework)
 
 ## Rencana pengembangan selanjutnya

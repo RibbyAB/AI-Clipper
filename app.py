@@ -395,14 +395,27 @@ def serve_clip(relpath):
     return send_from_directory(BASE_OUTPUT_DIR, relpath)
 
 
+def _resolve_job_dir(job_dir: str) -> Path | None:
+    """Pastikan job_dir tidak bisa dipakai buat keluar dari BASE_OUTPUT_DIR
+    (path traversal, mis. job_dir="../../etc"). Balikin None kalau mencurigakan."""
+    base = BASE_OUTPUT_DIR.resolve()
+    candidate = (base / job_dir).resolve()
+    if base not in candidate.parents and candidate != base:
+        return None
+    return candidate
+
+
 @app.route("/api/download_zip/<path:job_dir>")
 def download_zip(job_dir):
+    folder = _resolve_job_dir(job_dir)
+    if folder is None:
+        return "Path tidak valid.", 400
+
     with state_lock:
         jobs = list(state["jobs"])
     job = next((j for j in jobs if j["out_dir"] == job_dir), None)
     results = job["results"] if job else None
 
-    folder = BASE_OUTPUT_DIR / job_dir
     if results is None:
         # tidak ada di sesi aktif (mis. dibuka dari Riwayat) -- baca dari disk
         moments_file = folder / "moments.json"
@@ -431,8 +444,9 @@ def download_zip(job_dir):
 
 @app.route("/api/open_folder/<path:job_dir>", methods=["POST"])
 def open_folder(job_dir):
-    folder = (BASE_OUTPUT_DIR / job_dir).resolve()
-    if not folder.exists():
+    folder = _resolve_job_dir(job_dir)
+    if folder is None:
+        return jsonify({"ok": False, "error": "Path tidak valid."}), 400
         return jsonify({"ok": False, "error": "Folder tidak ditemukan."}), 404
 
     try:
